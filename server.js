@@ -4,7 +4,7 @@ const app = require('express')();
 const port = process.env.PORT || 8080;
 
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', 'https://codepen.io/');
+  res.setHeader('Access-Control-Allow-Origin', 'https://cdpn.io');
   next();
 });
 
