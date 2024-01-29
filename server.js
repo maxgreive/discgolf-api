@@ -3,6 +3,8 @@ const cheerio = require('cheerio');
 const app = require('express')();
 const port = process.env.PORT || 8080;
 
+app.use(require('cors')());
+
 app.get('/', async (req, res) => {
   try {
     const url = 'https://turniere.discgolf.de/index.php?p=events';
