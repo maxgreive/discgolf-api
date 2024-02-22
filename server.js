@@ -64,10 +64,13 @@ app.get('/metrix', async (req, res) => {
     const { metrixTournaments } = await getMetrixTournaments();
 
     const tournamentsArray = metrixTournaments.map(tournament => {
+      if (!tournament[1]) return false;
       return {
-        title: tournament[1],
+        title: tournament[1].split(' &rarr;')[0],
+        round: tournament[1].split(' &rarr;')[tournament[1].split(' &rarr;').length - 1],
+        id: tournament[0],
         link: `https://discgolfmetrix.com/${tournament[0]}`,
-        location: tournament[7],
+        location: tournament[7].split(' &rarr;')[0],
         coords: {
           lat: tournament[2],
           lng: tournament[3]
@@ -76,11 +79,37 @@ app.get('/metrix', async (req, res) => {
           startTournament: tournament[4]
         }
       }
-    });
-    res.send(JSON.stringify(tournamentsArray));
+    }).filter(Boolean);
+
+    removeDuplicates(tournamentsArray)
+    res.send(JSON.stringify(removeDuplicates(tournamentsArray)));
   } catch (err) {
     res.status(500).send({ message: err.message });
   }
 });
 
 app.listen(port, () => console.log(`Server has started on port ${port}`))
+
+function removeDuplicates(tournaments) {
+  const seen = {};
+  const relatedTournaments = {};
+
+  const result = tournaments.filter(tournament => {
+    const handle = tournament.title + ' - ' + tournament.dates.startTournament;
+    if (seen[handle]) {
+      const data = {id: tournament.id, round: tournament.round.trim()};
+      relatedTournaments[seen[handle]]?.length ? relatedTournaments[seen[handle]].push(data) : relatedTournaments[seen[handle]] = [data];
+      return false;
+    } else {
+      seen[handle] = tournament.id;
+      return tournament;
+    }
+  }).map(tournament => {
+    if (relatedTournaments[tournament.id]) {
+      tournament.relatedTournaments = relatedTournaments[tournament.id];
+    }
+    return tournament;
+  });
+
+  return result;
+}
