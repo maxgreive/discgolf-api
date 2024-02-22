@@ -8,7 +8,7 @@ app.use((req, res, next) => {
   next();
 });
 
-async function getTournaments() {
+async function getOfficialTournaments() {
   const url = 'https://turniere.discgolf.de/index.php?p=events';
   const { data } = await axios.get(url);
   const $ = cheerio.load(data);
@@ -16,10 +16,17 @@ async function getTournaments() {
   return { $, tournaments };
 }
 
+async function getMetrixTournaments() {
+  const url = 'https://discgolfmetrix.com/competitions_map_server.php?view=3&date1=2024-01-01&date2=2024-12-31&country_code=DE&page=all';
+  const { data } = await axios.get(url);
+  const metrixTournaments = data;
+  return { metrixTournaments };
+}
+
 app.get('/', async (req, res) => {
   try {
     const tournamentsArray = [];
-    const { $, tournaments } = await getTournaments();
+    const { $, tournaments } = await getOfficialTournaments();
 
     tournaments.each((i, el) => {
       try {
@@ -44,6 +51,30 @@ app.get('/', async (req, res) => {
         });
       } catch (err) {
         console.error(`Error while parsing tournament ${i}: ${err.message}`);
+      }
+    });
+    res.send(JSON.stringify(tournamentsArray));
+  } catch (err) {
+    res.status(500).send({ message: err.message });
+  }
+});
+
+app.get('/metrix', async (req, res) => {
+  try {
+    const { metrixTournaments } = await getMetrixTournaments();
+
+    const tournamentsArray = metrixTournaments.map(tournament => {
+      return {
+        title: tournament[1],
+        link: `https://discgolfmetrix.com/${tournament[0]}`,
+        location: tournament[7],
+        coords: {
+          lat: tournament[2],
+          lng: tournament[3]
+        },
+        dates: {
+          startTournament: tournament[4]
+        }
       }
     });
     res.send(JSON.stringify(tournamentsArray));
