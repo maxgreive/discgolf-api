@@ -48,7 +48,7 @@ export async function scrapeOfficial() {
     try {
       const tournament = $(el);
       const titleLink = tournament.find('td:first-child a');
-      const badge = tournament.find('td:first-child .badge').text().trim() || null;
+      const badge = tournament.find('td:first-child .badge').text().trim().toLowerCase() || null;
       const locationLink = tournament.find('td:nth-child(2) a');
       const [lat, lng] = locationLink.attr('href')?.split('/place/')[1].split(',') || [null, null];
 
