@@ -22,7 +22,7 @@ export function getCache(key) {
 
 export function setCache(key, value) {
   return new Promise((resolve, reject) => {
-    mc.set(key, value, { expires: 60 * 60 * 3 }, (err) => {
+    mc.set(key, value, { expires: process.env.CACHE_EXPIRY }, (err) => {
       if (err) {
         reject(err);
       } else {
