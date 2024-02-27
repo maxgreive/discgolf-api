@@ -19,4 +19,5 @@ app.use((err, req, res, next) => {
 app.get('/', (req, res, next) => getTournaments('official', scrapeOfficial)(req, res, next));
 app.get('/metrix', (req, res, next) => getTournaments('metrix', scrapeMetrix)(req, res, next));
 
+
 app.listen(process.env.PORT || 8080, () => console.log(`Server has started on port ${process.env.PORT || 8080}`));
