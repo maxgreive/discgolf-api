@@ -3,6 +3,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const app = require('express')();
 const memjs = require('memjs')
+const cacheDuration = 60 * 60 * 3; // 3 hours
 const port = process.env.PORT || 8080;
 const isProduction = process.env.ENVIRONMENT === 'production';
 const mc = memjs.Client.create(process.env.MEMCACHIER_SERVERS, {
@@ -54,9 +55,7 @@ async function scrapeOfficial() {
     }
   });
 
-  const result = JSON.stringify(tournamentsArray);
-
-  return result;
+  return JSON.stringify(tournamentsArray);
 }
 
 async function getMetrixTournaments() {
@@ -107,7 +106,7 @@ app.get('/', async (req, res) => {
   } else {
     try {
       const result = await scrapeOfficial();
-      mc.set('official', result, {expires: 1}, (err, val) => {if (err) console.error(err)});
+      mc.set('official', result, {expires: cacheDuration}, (err, val) => {if (err) console.error(err)});
       res.send(result);
     } catch (err) {
       res.status(500).send({ message: err.message });
@@ -122,7 +121,7 @@ app.get('/metrix', async (req, res) => {
   } else {
     try {
       const result = await scrapeMetrix();
-      mc.set('metrix', result, {expires: 1}, (err, val) => {if (err) console.error(err)});
+      mc.set('metrix', result, {expires: cacheDuration}, (err, val) => {if (err) console.error(err)});
       res.send(result);
     } catch (err) {
       res.status(500).send({ message: err.message });
