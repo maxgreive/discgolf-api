@@ -106,7 +106,7 @@ app.get('/', async (req, res) => {
   } else {
     try {
       const result = await scrapeOfficial();
-      mc.set('official', result, {expires: cacheDuration}, (err, val) => {if (err) console.error(err)});
+      mc.set('official', result, { expires: cacheDuration }, (err, val) => { if (err) console.error(err) });
       res.send(result);
     } catch (err) {
       res.status(500).send({ message: err.message });
@@ -121,7 +121,7 @@ app.get('/metrix', async (req, res) => {
   } else {
     try {
       const result = await scrapeMetrix();
-      mc.set('metrix', result, {expires: cacheDuration}, (err, val) => {if (err) console.error(err)});
+      mc.set('metrix', result, { expires: cacheDuration }, (err, val) => { if (err) console.error(err) });
       res.send(result);
     } catch (err) {
       res.status(500).send({ message: err.message });
