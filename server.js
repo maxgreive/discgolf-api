@@ -1,11 +1,14 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import cors from "cors";
 import { getTournaments, scrapeOfficial, scrapeMetrix } from './scrapeTournaments.js';
 import { scrapeStores } from "./scrapeStores.js";
 
 dotenv.config();
 
 const app = express();
+
+app.use(cors());
 
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN);
