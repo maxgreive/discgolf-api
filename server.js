@@ -2,13 +2,11 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from "cors";
 import { getTournaments, scrapeOfficial, scrapeMetrix } from './scrapeTournaments.js';
-import { scrapeStores } from "./scrapeStores.js";
+import { handleCache } from "./scrapeStores.js";
 
 dotenv.config();
 
 const app = express();
-
-app.use(cors());
 
 const allowedOrigin = process.env.ALLOWED_ORIGIN;
 
@@ -36,7 +34,7 @@ app.get('/tournaments/metrix', (req, res, next) => getTournaments('metrix', scra
 
 app.get("/products/discgolfstore", (req, res, next) => {
   if (req.query.q) {
-    scrapeStores('discgolfstore', req.query.q).then((products) => {
+    handleCache('discgolfstore', req.query.q).then((products) => {
       res.send(products);
     });
   } else {
@@ -46,7 +44,7 @@ app.get("/products/discgolfstore", (req, res, next) => {
 
 app.get("/products/thrownatur", (req, res, next) => {
   if (req.query.q) {
-    scrapeStores('thrownatur', req.query.q).then((products) => {
+    handleCache('thrownatur', req.query.q).then((products) => {
       res.send(products);
     });
   } else {
@@ -56,7 +54,7 @@ app.get("/products/thrownatur", (req, res, next) => {
 
 app.get("/products/crosslap", (req, res, next) => {
   if (req.query.q) {
-    scrapeStores('crosslap', req.query.q).then((products) => {
+    handleCache('crosslap', req.query.q).then((products) => {
       res.send(products);
     });
   } else {
@@ -66,7 +64,7 @@ app.get("/products/crosslap", (req, res, next) => {
 
 app.get("/products/frisbeeshop", (req, res, next) => {
   if (req.query.q) {
-    scrapeStores('frisbeeshop', req.query.q).then((products) => {
+    handleCache('frisbeeshop', req.query.q).then((products) => {
       res.send(products);
     });
   } else {
@@ -76,7 +74,7 @@ app.get("/products/frisbeeshop", (req, res, next) => {
 
 app.get("/products/insidethecircle", (req, res, next) => {
   if (req.query.q) {
-    scrapeStores('insidethecircle', req.query.q).then((products) => {
+    handleCache('insidethecircle', req.query.q).then((products) => {
       res.send(products);
     });
   } else {

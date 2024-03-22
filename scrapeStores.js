@@ -1,5 +1,9 @@
 import axios from "axios";
 import cheerio from "cheerio";
+import { getCache, setCache } from "./cache.js";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const urls = {
   dgStore: 'https://www.discgolfstore.de/search/?qs={{query}}&af=96',
@@ -11,7 +15,7 @@ const urls = {
 
 const crawledAt = new Date().toISOString();
 
-export async function scrapeStores(type, query) {
+async function scrapeStores(type, query) {
   switch (type) {
     case 'discgolfstore':
       return scrapeDGStore(query);
@@ -150,4 +154,15 @@ async function scrapeInsideTheCircle(query) {
     });
   });
   return filterProducts(products, query);
+}
+
+export async function handleCache(type, query) {
+  if (process.env.NODE_ENV !== 'production') {
+    return scrapeStores(type, query);
+  }
+  const cachedData = await getCache(query);
+  if (cachedData) return cachedData;
+  const data = await scrapeStores(type, query);
+  await setCache(query, data);
+  return data;
 }
