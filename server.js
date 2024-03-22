@@ -32,53 +32,14 @@ app.get('/tournaments', (req, res, next) => getTournaments('official', scrapeOff
 
 app.get('/tournaments/metrix', (req, res, next) => getTournaments('metrix', scrapeMetrix)(req, res, next));
 
-app.get("/products/discgolfstore", (req, res, next) => {
-  if (req.query.q) {
-    handleCache('discgolfstore', req.query.q).then((products) => {
-      res.send(products);
-    });
-  } else {
-    res.send("No query provided");
-  }
-});
-
-app.get("/products/thrownatur", (req, res, next) => {
-  if (req.query.q) {
-    handleCache('thrownatur', req.query.q).then((products) => {
-      res.send(products);
-    });
-  } else {
-    res.send("No query provided");
-  }
-});
-
-app.get("/products/crosslap", (req, res, next) => {
-  if (req.query.q) {
-    handleCache('crosslap', req.query.q).then((products) => {
-      res.send(products);
-    });
-  } else {
-    res.send("No query provided");
-  }
-});
-
-app.get("/products/frisbeeshop", (req, res, next) => {
-  if (req.query.q) {
-    handleCache('frisbeeshop', req.query.q).then((products) => {
-      res.send(products);
-    });
-  } else {
-    res.send("No query provided");
-  }
-});
-
-app.get("/products/insidethecircle", (req, res, next) => {
-  if (req.query.q) {
-    handleCache('insidethecircle', req.query.q).then((products) => {
-      res.send(products);
-    });
-  } else {
-    res.send("No query provided");
+app.get("/products/:type/:query", async (req, res, next) => {
+  const { type, query } = req.params;
+  try {
+    const data = await handleCache(type, query)
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'An error occured' });
   }
 });
 

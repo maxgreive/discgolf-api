@@ -157,12 +157,13 @@ async function scrapeInsideTheCircle(query) {
 }
 
 export async function handleCache(type, query) {
-  if (process.env.NODE_ENV !== 'production') {
-    return scrapeStores(type, query);
+  if (process.env.NODE_ENV === 'production') {
+    const cacheKey = `${type}-${query}`;
+    const cachedData = await getCache(cacheKey);
+    if (cachedData) return cachedData;
+    const data = await scrapeStores(type, query);
+    await setCache(cacheKey, data);
+    return data;
   }
-  const cachedData = await getCache(query);
-  if (cachedData) return cachedData;
-  const data = await scrapeStores(type, query);
-  await setCache(query, data);
-  return data;
+  return scrapeStores(type, query);
 }
