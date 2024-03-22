@@ -74,4 +74,14 @@ app.get("/products/frisbeeshop", (req, res, next) => {
   }
 });
 
+app.get("/products/insidethecircle", (req, res, next) => {
+  if (req.query.q) {
+    scrapeStores('insidethecircle', req.query.q).then((products) => {
+      res.send(products);
+    });
+  } else {
+    res.send("No query provided");
+  }
+});
+
 app.listen(process.env.PORT || 8080, () => console.log(`Server has started on port ${process.env.PORT || 8080}`));

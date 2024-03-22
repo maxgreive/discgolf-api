@@ -6,7 +6,10 @@ const urls = {
   thrownatur: 'https://thrownatur-discgolf.de/de/advanced_search_result.php?keywords={{query}}&listing_count=288',
   crosslap: 'https://www.discgolf-shop.de/advanced_search_result.php?keywords={{query}}&listing_count=1200',
   frisbeeshop: 'https://www.frisbeeshop.com/search?search={{query}}&order=topseller&limit=100',
+  insidethecircle: 'https://www.inside-the-circle.de/search/suggest.json?q={{query}}'
 }
+
+const crawledAt = new Date().toISOString();
 
 export async function scrapeStores(type, query) {
   switch (type) {
@@ -18,6 +21,8 @@ export async function scrapeStores(type, query) {
       return scrapeCrosslap(query);
     case 'frisbeeshop':
       return scrapeFrisbeeshop(query);
+    case 'insidethecircle':
+      return scrapeInsideTheCircle(query);
     default:
       return scrapeAllStores(query);
   }
@@ -46,21 +51,23 @@ async function scrapeDGStore(query) {
   if (isPDP) {
     products.push({
       title: $('.product-title').text()?.trim(),
-      price: parseFloat($('meta[itemprop="price"]').attr('content')?.trim()),
+      price: $('meta[itemprop="price"]').attr('content')?.trim(),
       image: $('meta[itemprop="image"]').attr('content')?.trim(),
       store: 'https://www.discgolfstore.de/bilder/intern/shoplogo/DGS_logo_160.jpg',
       url: $('.breadcrumb-item.active a').attr('href')?.trim(),
-      stockStatus: 'available'
+      stockStatus: 'available',
+      crawledAt: crawledAt
     });
   } else {
     $('.product-wrapper').each((i, el) => {
       products.push({
         title: $(el).find('.productbox-title a').text()?.trim(),
-        price: parseFloat($(el).find('meta[itemprop="price"]').attr('content')?.trim()),
+        price: $(el).find('meta[itemprop="price"]').attr('content')?.trim(),
         image: $(el).find('meta[itemprop="image"]').attr('content')?.trim(),
         store: 'https://www.discgolfstore.de/bilder/intern/shoplogo/DGS_logo_160.jpg',
         url: $(el).find('.productbox-title a').attr('href')?.trim(),
-        stockStatus: 'available'
+        stockStatus: 'available',
+        crawledAt: crawledAt
       });
     });
   }
@@ -80,11 +87,12 @@ async function scrapeThrownatur(query) {
     const stockStatus = stockStatusIcon?.includes('bestellbar') ? 'available' : stockStatusIcon?.includes('gray') ? 'unknown' : 'unavailable';
     products.push({
       title: $(el).find('.product-url ').text()?.trim(),
-      price: parseFloat(price.toFixed(2)),
+      price: price.toFixed(2),
       image: 'https://thrownatur-discgolf.de/' + $(el).find('.product-image img').attr('src')?.trim(),
       store: 'https://thrownatur-discgolf.de/images/logos/thrownatur_logo_neuer_shop_logo.png',
       url: $(el).find('a.product-url').attr('href')?.trim(),
-      stockStatus: stockStatus
+      stockStatus: stockStatus,
+      crawledAt: crawledAt
     });
   });
   return sortProducts(products, query);
@@ -98,14 +106,15 @@ async function scrapeCrosslap(query) {
   $('.product-container').each((i, el) => {
     const price = parseInt([...$(el).find('.current-price-container').text()?.trim()].filter(char => parseInt(char) > -1).join('')) / 100;
     const stockStatusIcon = $(el).find('.shipping-info-short img').attr('src');
-    const stockStatus = stockStatusIcon?.includes('/status/1') ? 'available' : 'unavailable';
+    const stockStatus = stockStatusIcon?.includes('/status/1') && !$(el).find('.ribbon-sold-out').length ? 'available' : 'unavailable';
     products.push({
       title: $(el).find('.product-url ').text()?.trim(),
-      price: parseFloat(price.toFixed(2)),
+      price: price.toFixed(2),
       image: 'https://discgolf-shop.de/' + $(el).find('.product-image img').attr('src')?.trim(),
       store: 'https://www.discgolf-shop.de/images/logos/banner_discgolf_de_logo.gif',
       url: $(el).find('a.product-url').attr('href')?.trim(),
-      stockStatus: stockStatus
+      stockStatus: stockStatus,
+      crawledAt: crawledAt
     });
   });
   return sortProducts(products, query);
@@ -120,12 +129,31 @@ async function scrapeFrisbeeshop(query) {
     const price = parseInt([...$(el).find('.product-price').text().split('€')[0]?.trim()].filter(char => parseInt(char) > -1).join('')) / 100;
     products.push({
       title: $(el).find('a.product-name').text()?.trim(),
-      price: parseFloat(price.toFixed(2)),
+      price: price.toFixed(2),
       image: $(el).find('.product-image-wrapper img').attr('srcset')?.trim()?.split(' 400w')[0]?.split('800w, ')[1] || $(el).find('.product-image-wrapper img').attr('src')?.trim(),
       store: 'https://www.frisbeeshop.com/bundles/frisbeeshoptheme/assets/logo-dark.svg',
       url: $(el).find('a.product-name').attr('href')?.trim(),
-      stockStatus: 'unknown'
+      stockStatus: 'unknown',
+      crawledAt: crawledAt
     });
   });
   return sortProducts(products, query);
+}
+
+async function scrapeInsideTheCircle(query) {
+  const url = urls.insidethecircle.replace('{{query}}', query);
+  const products = fetch(url).then(response => response.json()).then(searchData => {
+    return searchData.resources.results.products.map(product => {
+      return {
+        title: product.title,
+        price: product.price,
+        image: product.image.replace('.png', '_200x.png'),
+        store: 'https://www.inside-the-circle.de/cdn/shop/files/logo_01.png',
+        url: 'https://www.inside-the-circle.de' + product.url,
+        stockStatus: product.available ? 'available' : 'unavailable',
+        crawledAt: crawledAt
+      }
+    });
+  });
+  return products;
 }
