@@ -1,8 +1,8 @@
 import express from 'express';
 import dotenv from 'dotenv';
-import cors from "cors";
+import cors from 'cors';
 import { getTournaments, scrapeOfficial, scrapeMetrix } from './scrapeTournaments.js';
-import { handleCache } from "./scrapeStores.js";
+import { handleCache } from './scrapeStores.js';
 
 dotenv.config();
 
@@ -32,7 +32,18 @@ app.get('/tournaments', (req, res, next) => getTournaments('official', scrapeOff
 
 app.get('/tournaments/metrix', (req, res, next) => getTournaments('metrix', scrapeMetrix)(req, res, next));
 
-app.get("/products/:type/:query", async (req, res, next) => {
+app.get('/bagtag', async (req, res, next) => {
+  try {
+    const response = await fetch(process.env.BAGTAG_ENDPOINT);
+    const body = await response.json();
+    res.json(body);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'An error occured' });
+  }
+})
+
+app.get('/products/:type/:query', async (req, res, next) => {
   const { type, query } = req.params;
   try {
     const data = await handleCache(type, query)
@@ -42,5 +53,6 @@ app.get("/products/:type/:query", async (req, res, next) => {
     res.status(500).json({ message: 'An error occured' });
   }
 });
+
 
 app.listen(process.env.PORT || 8080, () => console.log(`Server has started on port ${process.env.PORT || 8080}`));
