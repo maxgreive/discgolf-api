@@ -28,17 +28,11 @@ export async function scrapeStores(type, query) {
   }
 }
 
-function sortProducts(products, query) {
+function filterProducts(products, query) {
   if (!products.length) return [];
   const queryWords = query.toLowerCase().split(' ');
   // remove products that don't contain not all of the query words
-  products = products.filter((product) => queryWords.every((word) => product.title.toLowerCase().includes(word)));
-
-  return products.sort((a, b) => {
-    const aScore = queryWords.reduce((acc, word) => acc + (a.title.toLowerCase().includes(word) ? 1 : 0), 0);
-    const bScore = queryWords.reduce((acc, word) => acc + (b.title.toLowerCase().includes(word) ? 1 : 0), 0);
-    return bScore - aScore;
-  });
+  return products.filter((product) => queryWords.every((word) => product.title.toLowerCase().includes(word)));
 }
 
 async function scrapeDGStore(query) {
@@ -71,7 +65,7 @@ async function scrapeDGStore(query) {
       });
     });
   }
-  return sortProducts(products, query);
+  return filterProducts(products, query);
 }
 
 async function scrapeThrownatur(query) {
@@ -95,7 +89,7 @@ async function scrapeThrownatur(query) {
       crawledAt: crawledAt
     });
   });
-  return sortProducts(products, query);
+  return filterProducts(products, query);
 }
 
 async function scrapeCrosslap(query) {
@@ -117,7 +111,7 @@ async function scrapeCrosslap(query) {
       crawledAt: crawledAt
     });
   });
-  return sortProducts(products, query);
+  return filterProducts(products, query);
 }
 
 async function scrapeFrisbeeshop(query) {
@@ -137,12 +131,12 @@ async function scrapeFrisbeeshop(query) {
       crawledAt: crawledAt
     });
   });
-  return sortProducts(products, query);
+  return filterProducts(products, query);
 }
 
 async function scrapeInsideTheCircle(query) {
   const url = urls.insidethecircle.replace('{{query}}', query);
-  const products = fetch(url).then(response => response.json()).then(searchData => {
+  const products = await fetch(url).then(response => response.json()).then(searchData => {
     return searchData.resources.results.products.map(product => {
       return {
         title: product.title,
@@ -155,5 +149,5 @@ async function scrapeInsideTheCircle(query) {
       }
     });
   });
-  return products;
+  return filterProducts(products, query);
 }
