@@ -149,7 +149,7 @@ async function scrapeInsideTheCircle(query) {
         title: product.title,
         price: product.price,
         image: product.image.replace('.png', '_400x.png'),
-        store: 'https://www.inside-the-circle.de/cdn/shop/files/logo_01.png',
+        store: 'https://www.inside-the-circle.de/cdn/shop/files/logo_01_200x.png',
         url: 'https://www.inside-the-circle.de' + product.url,
         stockStatus: product.available ? 'available' : 'unavailable',
         crawledAt: crawledAt
