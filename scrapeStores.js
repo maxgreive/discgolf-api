@@ -148,7 +148,7 @@ async function scrapeInsideTheCircle(query) {
       return {
         title: product.title,
         price: product.price,
-        image: product.image.replace('.png', '_200x.png'),
+        image: product.image.replace('.png', '_400x.png'),
         store: 'https://www.inside-the-circle.de/cdn/shop/files/logo_01.png',
         url: 'https://www.inside-the-circle.de' + product.url,
         stockStatus: product.available ? 'available' : 'unavailable',
@@ -166,7 +166,7 @@ async function scrapeChooseYourDisc(query) {
       return {
         title: product.title,
         price: product.price,
-        image: product.image.replace('.jpg', '_200x.jpg'),
+        image: product.image.replace('.jpg', '_400x.jpg'),
         store: 'https://www.chooseyourdisc.com/cdn/shop/files/cyd_logo_s.png?v=1707920720&width=200',
         url: 'https://www.chooseyourdisc.com' + product.url,
         stockStatus: product.available ? 'available' : 'unavailable',
