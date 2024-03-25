@@ -10,7 +10,8 @@ const urls = {
   thrownatur: 'https://thrownatur-discgolf.de/de/advanced_search_result.php?keywords={{query}}&listing_count=288',
   crosslap: 'https://www.discgolf-shop.de/advanced_search_result.php?keywords={{query}}&listing_count=1200',
   frisbeeshop: 'https://www.frisbeeshop.com/search?search={{query}}&order=topseller&limit=100',
-  insidethecircle: 'https://www.inside-the-circle.de/search/suggest.json?q={{query}}'
+  insidethecircle: 'https://www.inside-the-circle.de/search/suggest.json?q={{query}}',
+  chooseyourdisc: 'https://www.chooseyourdisc.com/search/suggest.json?q={{query}}'
 }
 
 const crawledAt = new Date().toISOString();
@@ -27,6 +28,8 @@ async function scrapeStores(type, query) {
       return scrapeFrisbeeshop(query);
     case 'insidethecircle':
       return scrapeInsideTheCircle(query);
+    case 'chooseyourdisc':
+      return scrapeChooseYourDisc(query);
     default:
       return scrapeAllStores(query);
   }
@@ -148,6 +151,24 @@ async function scrapeInsideTheCircle(query) {
         image: product.image.replace('.png', '_200x.png'),
         store: 'https://www.inside-the-circle.de/cdn/shop/files/logo_01.png',
         url: 'https://www.inside-the-circle.de' + product.url,
+        stockStatus: product.available ? 'available' : 'unavailable',
+        crawledAt: crawledAt
+      }
+    });
+  });
+  return filterProducts(products, query);
+}
+
+async function scrapeChooseYourDisc(query) {
+  const url = urls.chooseyourdisc.replace('{{query}}', query);
+  const products = await fetch(url).then(response => response.json()).then(searchData => {
+    return searchData.resources.results.products.map(product => {
+      return {
+        title: product.title,
+        price: product.price,
+        image: product.image.replace('.jpg', '_200x.jpg'),
+        store: 'https://www.chooseyourdisc.com/cdn/shop/files/cyd_logo_s.png?v=1707920720&width=200',
+        url: 'https://www.chooseyourdisc.com' + product.url,
         stockStatus: product.available ? 'available' : 'unavailable',
         crawledAt: crawledAt
       }
