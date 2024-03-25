@@ -31,7 +31,7 @@ async function scrapeStores(type, query) {
     case 'chooseyourdisc':
       return scrapeChooseYourDisc(query);
     default:
-      return scrapeAllStores(query);
+      return false;
   }
 }
 
@@ -39,7 +39,12 @@ function filterProducts(products, query) {
   if (!products.length) return [];
   const queryWords = query.toLowerCase().split(' ');
   // remove products that don't contain not all of the query words
-  return products.filter((product) => queryWords.every((word) => product.title.toLowerCase().includes(word)));
+  return products.filter(product => {
+    return queryWords.every(word => {
+      const regex = new RegExp(`\\b${word}\\b`);
+      return regex.test(product.title.toLowerCase());
+    });
+  });
 }
 
 async function scrapeDGStore(query) {
