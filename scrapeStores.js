@@ -11,7 +11,8 @@ const urls = {
   crosslap: 'https://www.discgolf-shop.de/advanced_search_result.php?keywords={{query}}&listing_count=1200',
   frisbeeshop: 'https://www.frisbeeshop.com/search?search={{query}}&order=topseller&limit=100',
   insidethecircle: 'https://www.inside-the-circle.de/search/suggest.json?q={{query}}',
-  chooseyourdisc: 'https://www.chooseyourdisc.com/search/suggest.json?q={{query}}'
+  chooseyourdisc: 'https://www.chooseyourdisc.com/search/suggest.json?q={{query}}',
+  discwolf: 'https://www.discwolf.com/search/suggest.json?q={{query}}'
 }
 
 const crawledAt = new Date().toISOString();
@@ -30,6 +31,8 @@ async function scrapeStores(type, query) {
       return scrapeInsideTheCircle(query);
     case 'chooseyourdisc':
       return scrapeChooseYourDisc(query);
+    case 'discwolf':
+      return scrapeDiscWolf(query);
     default:
       return false;
   }
@@ -40,9 +43,10 @@ function filterProducts(products, query) {
   const queryWords = query.toLowerCase().split(' ');
   // remove products that don't contain not all of the query words
   return products.filter(product => {
+    const title = (product.title + (product.vendor ? ' ' + product.vendor : '')).toLowerCase();
     return queryWords.every(word => {
       const regex = new RegExp(`\\b${word}\\b`);
-      return regex.test(product.title.toLowerCase());
+      return regex.test(title);
     });
   });
 }
@@ -157,6 +161,7 @@ async function scrapeInsideTheCircle(query) {
         store: 'https://www.inside-the-circle.de/cdn/shop/files/logo_01_200x.png',
         url: 'https://www.inside-the-circle.de' + product.url,
         stockStatus: product.available ? 'available' : 'unavailable',
+        vendor: product.vendor,
         crawledAt: crawledAt
       }
     });
@@ -175,6 +180,26 @@ async function scrapeChooseYourDisc(query) {
         store: 'https://www.chooseyourdisc.com/cdn/shop/files/cyd_logo_s.png?v=1707920720&width=200',
         url: 'https://www.chooseyourdisc.com' + product.url,
         stockStatus: product.available ? 'available' : 'unavailable',
+        vendor: product.vendor,
+        crawledAt: crawledAt
+      }
+    });
+  });
+  return filterProducts(products, query);
+}
+
+async function scrapeDiscWolf(query) {
+  const url = urls.discwolf.replace('{{query}}', query);
+  const products = await fetch(url).then(response => response.json()).then(searchData => {
+    return searchData.resources.results.products.map(product => {
+      return {
+        title: product.title,
+        price: formatPrice(product.price),
+        image: product.image.replace('.png', '_400x.png'),
+        store: 'https://discwolf.com/cdn/shop/files/discwolf-typo_371a03f2-73f0-4df7-bab3-fcdc3fc06931_200x.png',
+        url: 'https://www.discwolf.com' + product.url,
+        stockStatus: product.available ? 'available' : 'unavailable',
+        vendor: product.vendor,
         crawledAt: crawledAt
       }
     });

@@ -8,20 +8,21 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigin = process.env.ALLOWED_ORIGIN;
+// const allowedOrigin = process.env.ALLOWED_ORIGIN;
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // allow requests with no origin
-    // (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigin.indexOf(origin) === -1) {
-      var msg = `The CORS policy for this site does not allow access from origin ${origin}.`;
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  }
-}));
+app.use(cors({ origin: '*' }));
+// app.use(cors({
+//   origin: function (origin, callback) {
+//     // allow requests with no origin
+//     // (like mobile apps or curl requests)
+//     if (!origin) return callback(null, true);
+//     if (allowedOrigin.indexOf(origin) === -1) {
+//       var msg = `The CORS policy for this site does not allow access from origin ${origin}.`;
+//       return callback(new Error(msg), false);
+//     }
+//     return callback(null, true);
+//   }
+// }));
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
