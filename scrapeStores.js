@@ -1,5 +1,5 @@
 import axios from "axios";
-import cheerio from "cheerio";
+import * as cheerio from "cheerio";
 import { getCache, setCache } from "./cache.js";
 import dotenv from "dotenv";
 
@@ -13,7 +13,8 @@ const urls = {
   insidethecircle: 'https://www.inside-the-circle.de/search/suggest.json?q={{query}}',
   chooseyourdisc: 'https://www.chooseyourdisc.com/search/suggest.json?q={{query}}',
   discwolf: 'https://www.discwolf.com/search/suggest.json?q={{query}}',
-  birdieShop: 'https://www.birdie-shop.com/search?q={{query}}'
+  birdieShop: 'https://www.birdie-shop.com/search?q={{query}}',
+  discgolf4you: 'https://discgolf4you.com/page/{{page}}/?s={{query}}&post_type=product'
 }
 
 const crawledAt = new Date().toISOString();
@@ -36,6 +37,8 @@ async function scrapeStores(type, query) {
       return scrapeDiscWolf(query);
     case 'birdieshop':
       return scrapeBirdieShop(query);
+    case 'discgolf4you':
+      return scrapeDiscgolf4You(query);
     default:
       return false;
   }
@@ -56,7 +59,7 @@ function filterProducts(products, query) {
 
 async function scrapeDGStore(query) {
   const url = urls.dgStore.replace('{{query}}', query);
-  const html = await axios.get(url).then((res) => res.data);
+  const html = await axios.get(url).then(res => res.data);
   const $ = cheerio.load(html);
   const products = [];
   const isPDP = $('.product-detail').length > 0;
@@ -89,7 +92,7 @@ async function scrapeDGStore(query) {
 
 async function scrapeThrownatur(query) {
   const url = urls.thrownatur.replace('{{query}}', query);
-  const html = await axios.get(url).then((res) => res.data);
+  const html = await axios.get(url).then(res => res.data);
   const $ = cheerio.load(html);
   const products = [];
   $('.product-container').each((i, el) => {
@@ -113,7 +116,7 @@ async function scrapeThrownatur(query) {
 
 async function scrapeCrosslap(query) {
   const url = urls.crosslap.replace('{{query}}', query);
-  const html = await axios.get(url).then((res) => res.data);
+  const html = await axios.get(url).then(res => res.data);
   const $ = cheerio.load(html);
   const products = [];
   $('.product-container').each((i, el) => {
@@ -135,7 +138,7 @@ async function scrapeCrosslap(query) {
 
 async function scrapeFrisbeeshop(query) {
   const url = urls.frisbeeshop.replace('{{query}}', query);
-  const html = await axios.get(url).then((res) => res.data);
+  const html = await axios.get(url).then(res => res.data);
   const $ = cheerio.load(html);
   const products = [];
   $('.product-box').each((i, el) => {
@@ -212,13 +215,13 @@ async function scrapeDiscWolf(query) {
 
 async function scrapeBirdieShop(query) {
   const url = urls.birdieShop.replace('{{query}}', query);
-  const html = await axios.get(url).then((res) => res.data);
+  const html = await axios.get(url).then(res => res.data);
   const $ = cheerio.load(html);
   const productItems = Array.from($('.search-result'));
   const products = await Promise.all(productItems.map(async (el) => {
     const url = 'https://www.birdie-shop.com' + $(el).attr('data-url');
     try {
-      const productHtml = await axios.get(url).then((res) => res.data);
+      const productHtml = await axios.get(url).then(res => res.data);
       const $product = cheerio.load(productHtml);
       const price = parseInt([...$product('.product-price').text().trim()].filter(char => parseInt(char) > -1).join(''));
       const image = $product('.ProductItem-gallery-slides-item-image').first().attr('data-src');
@@ -236,6 +239,38 @@ async function scrapeBirdieShop(query) {
     }
   }));
   return filterProducts(products.filter(Boolean), query);
+}
+
+async function scrapeDiscgolf4You(query) {
+  const url = urls.discgolf4you.replace('{{query}}', query).replace('{{page}}', '1');
+  const html = await axios.get(url).then(res => res.data)
+  const $ = cheerio.load(html);
+  let pagesLength = parseInt([...$('#pagination-container a.page-link:not(.next)').last().text().trim()].filter(char => Number(char)).join('')) || 1;
+  const products = [];
+  for (let i = 1; i <= pagesLength; i++) {
+    const nextPageUrl = urls.discgolf4you.replace('{{query}}', query).replace('{{page}}', i)
+    try {
+      const nextPageHtml = await axios.get(nextPageUrl).then(res => res.data);
+      const $nextPage = cheerio.load(nextPageHtml);
+      const productItems = Array.from($nextPage('.product'));
+      productItems.forEach(async el => {
+        const price = parseInt([...$nextPage(el).find('.woocommerce-Price-amount bdi').text().trim()].filter(char => parseInt(char) > -1).join(''));
+        products.push({
+          title: $nextPage(el).find('.woocommerce-loop-product__title').text(),
+          price: price,
+          image: $nextPage(el).find('img').attr('data-src'),
+          store: 'https://cdn.discgolf4you.com/wp-content/uploads/2021/08/DG4Y_Logo_green_square.png?resize=100%2C100',
+          url: $nextPage(el).find('a').attr('href'),
+          stockStatus: 'unknown',
+          crawledAt: crawledAt
+        });
+      });
+    } catch (err) {
+      console.log('Error fetching product page', err);
+    }
+  }
+
+  return products;
 }
 
 export async function handleCache(type, query) {
