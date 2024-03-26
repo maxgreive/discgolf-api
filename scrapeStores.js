@@ -94,7 +94,7 @@ async function scrapeThrownatur(query) {
     products.push({
       title: $(el).find('.product-url ').text()?.trim(),
       price: price.toFixed(2),
-      image: 'https://thrownatur-discgolf.de/' + $(el).find('.product-image img').attr('src')?.trim(),
+      image: 'https://thrownatur-discgolf.de/' + $(el).find('.product-image img').attr('src')?.replace('thumbnail_images', 'info_images').trim(),
       store: 'https://thrownatur-discgolf.de/images/logos/thrownatur_logo_neuer_shop_logo.png',
       url: $(el).find('a.product-url').attr('href')?.trim(),
       stockStatus: stockStatus,
