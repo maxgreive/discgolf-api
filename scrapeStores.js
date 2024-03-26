@@ -12,7 +12,8 @@ const urls = {
   frisbeeshop: 'https://www.frisbeeshop.com/search?search={{query}}&order=topseller&limit=100',
   insidethecircle: 'https://www.inside-the-circle.de/search/suggest.json?q={{query}}',
   chooseyourdisc: 'https://www.chooseyourdisc.com/search/suggest.json?q={{query}}',
-  discwolf: 'https://www.discwolf.com/search/suggest.json?q={{query}}'
+  discwolf: 'https://www.discwolf.com/search/suggest.json?q={{query}}',
+  birdieShop: 'https://www.birdie-shop.com/search?q={{query}}'
 }
 
 const crawledAt = new Date().toISOString();
@@ -33,6 +34,8 @@ async function scrapeStores(type, query) {
       return scrapeChooseYourDisc(query);
     case 'discwolf':
       return scrapeDiscWolf(query);
+    case 'birdieshop':
+      return scrapeBirdieShop(query);
     default:
       return false;
   }
@@ -205,6 +208,34 @@ async function scrapeDiscWolf(query) {
     });
   });
   return filterProducts(products, query);
+}
+
+async function scrapeBirdieShop(query) {
+  const url = urls.birdieShop.replace('{{query}}', query);
+  const html = await axios.get(url).then((res) => res.data);
+  const $ = cheerio.load(html);
+  const productItems = Array.from($('.search-result'));
+  const products = await Promise.all(productItems.map(async (el) => {
+    const url = 'https://www.birdie-shop.com' + $(el).attr('data-url');
+    try {
+      const productHtml = await axios.get(url).then((res) => res.data);
+      const $product = cheerio.load(productHtml);
+      const price = parseInt([...$product('.product-price').text().trim()].filter(char => parseInt(char) > -1).join(''));
+      const image = $product('.ProductItem-gallery-slides-item-image').first().attr('data-src');
+      return {
+        title: $(el).find('.sqs-title').text()?.trim(),
+        price: price,
+        image: image + '?format=500w',
+        store: 'https://images.squarespace-cdn.com/content/v1/60a775bf4c6b1805bc03f453/3e8aa999-a6c1-46d0-bf76-6ff63b4b60d6/favicon.png?format=100w',
+        url: url,
+        stockStatus: 'unknown',
+        crawledAt: crawledAt
+      };
+    } catch (err) {
+      console.log('Error fetching product page', err);
+    }
+  }));
+  return filterProducts(products.filter(Boolean), query);
 }
 
 export async function handleCache(type, query) {
