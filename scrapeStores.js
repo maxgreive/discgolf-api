@@ -57,7 +57,7 @@ async function scrapeDGStore(query) {
   if (isPDP) {
     products.push({
       title: $('.product-title').text()?.trim(),
-      price: $('meta[itemprop="price"]').attr('content')?.trim(),
+      price: formatPrice($('meta[itemprop="price"]').attr('content')),
       image: $('meta[itemprop="image"]').attr('content')?.trim(),
       store: 'https://www.discgolfstore.de/bilder/intern/shoplogo/DGS_logo_160.jpg',
       url: $('.breadcrumb-item.active a').attr('href')?.trim(),
@@ -68,7 +68,7 @@ async function scrapeDGStore(query) {
     $('.product-wrapper').each((i, el) => {
       products.push({
         title: $(el).find('.productbox-title a').text()?.trim(),
-        price: $(el).find('meta[itemprop="price"]').attr('content')?.trim(),
+        price: formatPrice($(el).find('meta[itemprop="price"]').attr('content')),
         image: $(el).find('meta[itemprop="image"]').attr('content')?.trim(),
         store: 'https://www.discgolfstore.de/bilder/intern/shoplogo/DGS_logo_160.jpg',
         url: $(el).find('.productbox-title a').attr('href')?.trim(),
@@ -88,12 +88,12 @@ async function scrapeThrownatur(query) {
   $('.product-container').each((i, el) => {
     const $price = $(el).find('.current-price-container').text()?.trim();
     const priceCleaned = $price.includes('Nur') ? $price.split('Nur')[1] : $price;
-    const price = parseInt([...priceCleaned].filter(char => parseInt(char) > -1).join('')) / 100;
+    const price = parseInt([...priceCleaned].filter(char => parseInt(char) > -1).join(''));
     const stockStatusIcon = $(el).find('.shipping-info-short img').attr('src')
     const stockStatus = stockStatusIcon?.includes('bestellbar') ? 'available' : stockStatusIcon?.includes('gray') ? 'unknown' : 'unavailable';
     products.push({
       title: $(el).find('.product-url ').text()?.trim(),
-      price: price.toFixed(2),
+      price: price,
       image: 'https://thrownatur-discgolf.de/' + $(el).find('.product-image img').attr('src')?.replace('thumbnail_images', 'info_images').trim(),
       store: 'https://thrownatur-discgolf.de/images/logos/thrownatur_logo_neuer_shop_logo.png',
       url: $(el).find('a.product-url').attr('href')?.trim(),
@@ -110,12 +110,12 @@ async function scrapeCrosslap(query) {
   const $ = cheerio.load(html);
   const products = [];
   $('.product-container').each((i, el) => {
-    const price = parseInt([...$(el).find('.current-price-container').text()?.trim()].filter(char => parseInt(char) > -1).join('')) / 100;
+    const price = parseInt([...$(el).find('.current-price-container').text()?.trim()].filter(char => parseInt(char) > -1).join(''));
     const stockStatusIcon = $(el).find('.shipping-info-short img').attr('src');
     const stockStatus = stockStatusIcon?.includes('/status/1') && !$(el).find('.ribbon-sold-out').length ? 'available' : 'unavailable';
     products.push({
       title: $(el).find('.product-url ').text()?.trim(),
-      price: price.toFixed(2),
+      price: price,
       image: 'https://discgolf-shop.de/' + $(el).find('.product-image img').attr('src')?.trim(),
       store: 'https://www.discgolf-shop.de/images/logos/banner_discgolf_de_logo.gif',
       url: $(el).find('a.product-url').attr('href')?.trim(),
@@ -132,10 +132,10 @@ async function scrapeFrisbeeshop(query) {
   const $ = cheerio.load(html);
   const products = [];
   $('.product-box').each((i, el) => {
-    const price = parseInt([...$(el).find('.product-price').text().split('€')[0]?.trim()].filter(char => parseInt(char) > -1).join('')) / 100;
+    const price = parseInt([...$(el).find('.product-price').text().split('€')[0]?.trim()].filter(char => parseInt(char) > -1).join(''));
     products.push({
       title: $(el).find('a.product-name').text()?.trim(),
-      price: price.toFixed(2),
+      price: price,
       image: $(el).find('.product-image-wrapper img').attr('srcset')?.trim()?.split(' 400w')[0]?.split('800w, ')[1] || $(el).find('.product-image-wrapper img').attr('src')?.trim(),
       store: 'https://www.frisbeeshop.com/bundles/frisbeeshoptheme/assets/logo-dark.svg',
       url: $(el).find('a.product-name').attr('href')?.trim(),
@@ -152,7 +152,7 @@ async function scrapeInsideTheCircle(query) {
     return searchData.resources.results.products.map(product => {
       return {
         title: product.title,
-        price: product.price,
+        price: formatPrice(product.price),
         image: product.image.replace('.png', '_400x.png'),
         store: 'https://www.inside-the-circle.de/cdn/shop/files/logo_01_200x.png',
         url: 'https://www.inside-the-circle.de' + product.url,
@@ -170,7 +170,7 @@ async function scrapeChooseYourDisc(query) {
     return searchData.resources.results.products.map(product => {
       return {
         title: product.title,
-        price: product.price,
+        price: formatPrice(product.price),
         image: product.image.replace('.jpg', '_400x.jpg'),
         store: 'https://www.chooseyourdisc.com/cdn/shop/files/cyd_logo_s.png?v=1707920720&width=200',
         url: 'https://www.chooseyourdisc.com' + product.url,
@@ -192,4 +192,12 @@ export async function handleCache(type, query) {
     return data;
   }
   return scrapeStores(type, query);
+}
+
+function formatPrice(str) {
+  if (!str || typeof str !== 'string') return null;
+  const dotNotation = str.trim().replace(',', '.');
+  const euro = new Number(dotNotation);
+  const cents = euro * 100;
+  return parseInt(cents);
 }
