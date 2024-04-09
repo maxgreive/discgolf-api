@@ -1,7 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import { createProxyMiddleware } from 'http-proxy-middleware';
 import { getTournaments, scrapeOfficial, scrapeMetrix } from './scrapeTournaments.js';
 import { handleCache } from './scrapeStores.js';
 
@@ -35,11 +34,6 @@ app.use((err, req, res, next) => {
 app.get('/tournaments', (req, res, next) => getTournaments('official', scrapeOfficial)(req, res, next));
 
 app.get('/tournaments/metrix', (req, res, next) => getTournaments('metrix', scrapeMetrix)(req, res, next));
-
-app.use('/tournaments/experimental', createProxyMiddleware({
-  target: `https://turniere.discgolf.de/index.php?p=api&key=tournaments-actual&token=${process.env.TOURNAMENTS_API_TOKEN}&secret=${process.env.TOURNAMENTS_API_SECRET}`,
-  changeOrigin: true
-}));
 
 app.get('/bagtag', async (req, res, next) => {
   try {
