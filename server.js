@@ -33,6 +33,17 @@ app.use((err, req, res, next) => {
 
 app.get('/tournaments', (req, res, next) => getTournaments('official', scrapeOfficial)(req, res, next));
 
+app.get('/tournaments/experimental', async (req, res, next) => {
+  try {
+    const response = await fetch(`https://turniere.discgolf.de/index.php?p=api&key=tournaments-actual&token=${process.env.TOURNAMENTS_API_TOKEN}&secret=${process.env.TOURNAMENTS_API_SECRET}`);
+    const body = await response.text();
+    res.send(body);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: 'An error occured!' })
+  }
+});
+
 app.get('/tournaments/metrix', (req, res, next) => getTournaments('metrix', scrapeMetrix)(req, res, next));
 
 app.get('/bagtag', async (req, res, next) => {
