@@ -32,9 +32,9 @@ app.use((err, req, res, next) => {
 });
 
 
-app.get('/tournaments', (req, res, next) => getTournaments('official', fetchOfficial)(req, res, next));
+app.get('/tournaments', async (req, res, next) => getTournaments('official', fetchOfficial)(req, res, next));
 
-app.get('/tournaments/metrix', (req, res, next) => getTournaments('metrix', scrapeMetrix)(req, res, next));
+app.get('/tournaments/metrix', async (req, res, next) => getTournaments('metrix', scrapeMetrix)(req, res, next));
 
 app.get('/bagtag', async (req, res, next) => {
   try {

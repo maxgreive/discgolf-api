@@ -62,11 +62,19 @@ export async function scrapeMetrix() {
   return JSON.stringify(removeDuplicates(tournamentsArray));
 }
 
+async function getOfficialTournaments() {
+  const url = `${process.env.OFFICIAL_URL}?p=api&key=tournaments-actual&token=${process.env.TOURNAMENTS_API_TOKEN}&secret=${process.env.TOURNAMENTS_API_SECRET}`;
+  const { data } = await axios.get(url);
+  const officialTournaments = data;
+  return { officialTournaments };
+}
+
 export async function fetchOfficial() {
-  try {
-    const response = await fetch(`${process.env.OFFICIAL_URL}?p=api&key=tournaments-actual&token=${process.env.TOURNAMENTS_API_TOKEN}&secret=${process.env.TOURNAMENTS_API_SECRET}`);
-    const body = await response.json();
-    const tournaments = body.filter(tournament => tournament.location_latitude && tournament.location_longitude).map(tournament => {
+  const { officialTournaments } = await getOfficialTournaments();
+
+  const tournamentsArray = officialTournaments
+    .filter(tournament => tournament.location_latitude && tournament.location_longitude)
+    .map(tournament => {
       return {
         title: tournament.event_name,
         link: `${process.env.OFFICIAL_URL}&sp=view&id=${tournament.event_id}`,
@@ -82,9 +90,7 @@ export async function fetchOfficial() {
           startRegistration: new Date(tournament.timestamp_registration_phase * 1000),
         }
       }
-    })
-    return JSON.stringify(tournaments);
-  } catch (error) {
-    console.error(error);
-  }
+    });
+
+    return JSON.stringify(tournamentsArray);
 }
