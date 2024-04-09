@@ -270,7 +270,7 @@ async function scrapeDiscgolf4You(query) {
     }
   }
 
-  return products;
+  return filterProducts(products, query);
 }
 
 export async function handleCache(type, query) {
