@@ -39,9 +39,7 @@ app.get('/tournaments/metrix', (req, res, next) => getTournaments('metrix', scra
 app.use('/tournaments/experimental', createProxyMiddleware({
   target: `https://turniere.discgolf.de/index.php?p=api&key=tournaments-actual&token=${process.env.TOURNAMENTS_API_TOKEN}&secret=${process.env.TOURNAMENTS_API_SECRET}`,
   changeOrigin: true,
-  pathRewrite: {
-   '^/': ''
-  }
+  pathRewrite: (path, req) => path.replace('/', '')
 }));
 
 app.get('/bagtag', async (req, res, next) => {
