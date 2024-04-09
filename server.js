@@ -1,7 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import { getTournaments, scrapeOfficial, scrapeMetrix } from './scrapeTournaments.js';
+import { getTournaments, scrapeMetrix } from './scrapeTournaments.js';
 import { handleCache } from './scrapeStores.js';
 
 dotenv.config();
@@ -31,13 +31,29 @@ app.use((err, req, res, next) => {
   res.status(500).send({ message: err.message });
 });
 
-app.get('/tournaments', (req, res, next) => getTournaments('official', scrapeOfficial)(req, res, next));
 
-app.get('/tournaments/experimental', async (req, res, next) => {
+app.get('/tournaments', async (req, res, next) => {
   try {
     const response = await fetch(`https://turniere.discgolf.de/index.php?p=api&key=tournaments-actual&token=${process.env.TOURNAMENTS_API_TOKEN}&secret=${process.env.TOURNAMENTS_API_SECRET}`);
-    const body = await response.text();
-    res.send(body);
+    const body = await response.json();
+    const tournaments = body.filter(tournament => tournament.location_latitude && tournament.location_longitude).map(tournament => {
+      return {
+        title: tournament.event_name,
+        link: `https://turniere.discgolf.de/index.php?p=events&sp=view&id=${tournament.event_id}`,
+        location: tournament.location,
+        coords: {
+          lat: tournament.location_latitude,
+          lng: tournament.location_longitude
+        },
+        badge: null,
+        dates: {
+          startTournament: new Date(tournament.timestamp_start * 1000),
+          endTournament: new Date(tournament.timestamp_end * 1000),
+          startRegistration: new Date(tournament.timestamp_registration_phase * 1000),
+        }
+      }
+    })
+    res.send(tournaments);
   } catch (error) {
     console.error(error);
     res.status(500).send({ message: 'An error occured!' })

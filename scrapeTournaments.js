@@ -1,5 +1,4 @@
 import axios from 'axios';
-import cheerio from 'cheerio';
 import { removeDuplicates } from './utils.js';
 import { getCache, setCache } from './cache.js';
 
@@ -30,49 +29,6 @@ async function handleCache(type, scrapeFunction) {
   const result = await scrapeFunction();
   await setCache(type, result);
   return result;
-}
-
-async function getOfficialTournaments() {
-  const url = process.env.OFFICIAL_URL;
-  const { data } = await axios.get(url);
-  const $ = cheerio.load(data);
-  const tournaments = $('#list_tournaments tbody tr');
-  return { $, tournaments };
-}
-
-export async function scrapeOfficial() {
-  const tournamentsArray = [];
-  const { $, tournaments } = await getOfficialTournaments();
-
-  tournaments.each((i, el) => {
-    try {
-      const tournament = $(el);
-      const titleLink = tournament.find('td:first-child a');
-      const badge = tournament.find('td:first-child .badge').text().trim().toLowerCase() || null;
-      const locationLink = tournament.find('td:nth-child(2) a');
-      const [lat, lng] = locationLink.attr('href')?.split('/place/')[1].split(',') || [null, null];
-
-      tournamentsArray.push({
-        title: titleLink.text().trim(),
-        link: titleLink.attr('href'),
-        location: locationLink.text().trim(),
-        coords: {
-          lat: parseFloat(lat),
-          lng: parseFloat(lng)
-        },
-        badge: badge,
-        dates: {
-          startTournament: new Date(parseInt(tournament.find('td:nth-child(3)').attr('data-sort')) * 1000),
-          endTournament: new Date(parseInt(tournament.find('td:nth-child(4)').attr('data-sort')) * 1000),
-          startRegistration: tournament.find('td:nth-child(5)').attr('data-sort') !== "0" ? new Date(parseInt(tournament.find('td:nth-child(5)').attr('data-sort')) * 1000) : null
-        }
-      });
-    } catch (err) {
-      console.error(`Error while parsing tournament ${i}: ${err.message}`);
-    }
-  });
-
-  return JSON.stringify(tournamentsArray);
 }
 
 async function getMetrixTournaments() {
