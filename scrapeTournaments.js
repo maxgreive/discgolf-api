@@ -72,25 +72,23 @@ async function getOfficialTournaments() {
 export async function fetchOfficial() {
   const { officialTournaments } = await getOfficialTournaments();
 
-  const tournamentsArray = officialTournaments
-    .filter(tournament => tournament.location_latitude && tournament.location_longitude)
-    .map(tournament => {
-      return {
-        title: tournament.event_name,
-        link: `${process.env.OFFICIAL_URL}&sp=view&id=${tournament.event_id}`,
-        location: tournament.location,
-        coords: {
-          lat: tournament.location_latitude,
-          lng: tournament.location_longitude
-        },
-        badge: tournament.status === 2 ? 'vorläufig' : null,
-        dates: {
-          startTournament: new Date(tournament.timestamp_start * 1000),
-          endTournament: new Date(tournament.timestamp_end * 1000),
-          startRegistration: new Date(tournament.timestamp_registration_phase * 1000),
-        }
+  const tournamentsArray = officialTournaments.filter(tournament => tournament.location_latitude && tournament.location_longitude).map(tournament => {
+    return {
+      title: tournament.event_name,
+      link: `${process.env.OFFICIAL_URL}&sp=view&id=${tournament.event_id}`,
+      location: tournament.location,
+      coords: {
+        lat: tournament.location_latitude,
+        lng: tournament.location_longitude
+      },
+      badge: tournament.status === 2 ? 'vorläufig' : null,
+      dates: {
+        startTournament: new Date(tournament.timestamp_start * 1000),
+        endTournament: new Date(tournament.timestamp_end * 1000),
+        startRegistration: new Date(tournament.timestamp_registration_phase * 1000),
       }
-    });
+    }
+  });
 
-    return JSON.stringify(tournamentsArray);
+  return JSON.stringify(tournamentsArray);
 }
