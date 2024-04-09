@@ -23,10 +23,10 @@ export function getTournaments(type, callback) {
   };
 }
 
-async function handleCache(type, scrapeFunction) {
+async function handleCache(type, callback) {
   const cacheData = await getCache(type);
   if (cacheData) return cacheData;
-  const result = await scrapeFunction();
+  const result = await callback();
   await setCache(type, result);
   return result;
 }
