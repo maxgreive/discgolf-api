@@ -7,14 +7,14 @@ dotenv.config();
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-export function getTournaments(type, scrapeFunction) {
+export function getTournaments(type, callback) {
   return async (req, res, next) => {
     try {
       let result;
       if (isProduction) {
-        result = await handleCache(type, scrapeFunction);
+        result = await handleCache(type, callback);
       } else {
-        result = await scrapeFunction();
+        result = await callback();
       }
       res.send(result);
     } catch (err) {
@@ -60,4 +60,31 @@ export async function scrapeMetrix() {
   }).filter(Boolean);
 
   return JSON.stringify(removeDuplicates(tournamentsArray));
+}
+
+export async function fetchOfficial() {
+  try {
+    const response = await fetch(`${process.env.OFFICIAL_URL}?p=api&key=tournaments-actual&token=${process.env.TOURNAMENTS_API_TOKEN}&secret=${process.env.TOURNAMENTS_API_SECRET}`);
+    const body = await response.json();
+    const tournaments = body.filter(tournament => tournament.location_latitude && tournament.location_longitude).map(tournament => {
+      return {
+        title: tournament.event_name,
+        link: `${process.env.OFFICIAL_URL}&sp=view&id=${tournament.event_id}`,
+        location: tournament.location,
+        coords: {
+          lat: tournament.location_latitude,
+          lng: tournament.location_longitude
+        },
+        badge: tournament.status === 2 ? 'vorläufig' : null,
+        dates: {
+          startTournament: new Date(tournament.timestamp_start * 1000),
+          endTournament: new Date(tournament.timestamp_end * 1000),
+          startRegistration: new Date(tournament.timestamp_registration_phase * 1000),
+        }
+      }
+    })
+    return JSON.stringify(tournaments);
+  } catch (error) {
+    console.error(error);
+  }
 }
