@@ -45,7 +45,7 @@ app.get('/tournaments', async (req, res, next) => {
           lat: tournament.location_latitude,
           lng: tournament.location_longitude
         },
-        badge: null,
+        badge: tournament.status === 2 ? 'vorläufig' : null,
         dates: {
           startTournament: new Date(tournament.timestamp_start * 1000),
           endTournament: new Date(tournament.timestamp_end * 1000),
