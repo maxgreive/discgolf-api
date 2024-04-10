@@ -75,7 +75,7 @@ export async function fetchOfficial() {
   const tournamentsArray = officialTournaments.filter(tournament => tournament.location_latitude && tournament.location_longitude).map(tournament => {
     return {
       title: tournament.event_name,
-      link: `${process.env.OFFICIAL_URL}&sp=view&id=${tournament.event_id}`,
+      link: `${process.env.OFFICIAL_URL}?p=events&sp=view&id=${tournament.event_id}`,
       location: tournament.location,
       coords: {
         lat: tournament.location_latitude,
