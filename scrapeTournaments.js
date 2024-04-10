@@ -85,7 +85,7 @@ export async function fetchOfficial() {
       dates: {
         startTournament: new Date(tournament.timestamp_start * 1000),
         endTournament: new Date(tournament.timestamp_end * 1000),
-        startRegistration: new Date(tournament.timestamp_registration_phase * 1000),
+        startRegistration: tournament.timestamp_registration_phase ? new Date(tournament.timestamp_registration_phase * 1000) : null,
       }
     }
   });
