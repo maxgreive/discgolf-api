@@ -56,9 +56,11 @@ function getCell(element, number = false) {
 export async function getRatings() {
   if (process.env.NODE_ENV === 'production') {
     const cache = await getCache('ratings');
+    console.log('get cache:', cache);
     if (cache) return cache;
     const ratings = scrapeRatings();
     setCache('ratings', ratings, 3600);
+    console.log('set cache:', ratings);
     return ratings;
   }
 
