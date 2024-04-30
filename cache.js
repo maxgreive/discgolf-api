@@ -20,9 +20,9 @@ export function getCache(key) {
   });
 }
 
-export function setCache(key, value) {
+export function setCache(key, value, expiry = process.env.CACHE_EXPIRY) {
   return new Promise((resolve, reject) => {
-    mc.set(key, JSON.stringify(value), { expires: process.env.CACHE_EXPIRY }, (err) => {
+    mc.set(key, JSON.stringify(value), { expires: expiry }, (err) => {
       if (err) {
         reject(err);
       } else {

@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import { getTournaments, fetchOfficial, scrapeMetrix } from './scrapeTournaments.js';
 import { handleCache } from './scrapeStores.js';
+import { getRatings } from './scrapeRating.js';
 
 dotenv.config();
 
@@ -58,5 +59,14 @@ app.get('/products/:type/:query', async (req, res, next) => {
   }
 });
 
+app.get('/ratings', async (req, res, next) => {
+  try {
+    const data = await getRatings()
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'An error occured' });
+  }
+});
 
 app.listen(process.env.PORT || 8080, () => console.log(`Server has started on http://localhost:${process.env.PORT || 8080}`));
