@@ -18,6 +18,7 @@ async function scrapeRatings() {
     const ratings = await Promise.all(rows.map(async element => {
       const columns = $(element).find('td');
       const club = getCell($(columns[8]));
+      if (!club.includes('Syndikat')) return;
       const link = process.env.RATING_URL + '/' + $(columns[3]).find('a').attr('href');
       const ratingChangeSymbol = getCell($(columns[6])).slice(-1).charCodeAt();
       const ratingChange = ratingChangeSymbol === 8593 ? 1 : ratingChangeSymbol === 8595 ? -1 : null;
