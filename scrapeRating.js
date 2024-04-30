@@ -57,7 +57,7 @@ export async function getRatings() {
     const cache = await getCache('ratings');
     if (cache) return cache;
     const ratings = scrapeRatings();
-    setCache('ratings', ratings, 60);
+    setCache('ratings', ratings, 3600);
     return ratings;
   }
 
