@@ -127,7 +127,7 @@ async function scrapeCrosslap(query) {
       title: $(el).find('.product-url ').text()?.trim(),
       price: price,
       image: 'https://discgolf-shop.de/' + $(el).find('.product-image img').attr('src')?.trim(),
-      store: 'discgolf-shop',
+      store: 'crosslap',
       url: $(el).find('a.product-url').attr('href')?.trim(),
       stockStatus: stockStatus,
       crawledAt: crawledAt
