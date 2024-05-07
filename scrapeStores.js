@@ -254,7 +254,7 @@ async function scrapeDiscgolf4You(query) {
       const $nextPage = cheerio.load(nextPageHtml);
       const productItems = Array.from($nextPage('.product'));
       productItems.forEach(async el => {
-        const price = parseInt([...$nextPage(el).find('.woocommerce-Price-amount bdi').text().trim()].filter(char => parseInt(char) > -1).join(''));
+        const price = parseInt([...$nextPage(el).find('.price span :not(del) span bdi, .price span span bdi').text().trim()].filter(char => parseInt(char) > -1).join(''));
         products.push({
           title: $nextPage(el).find('.woocommerce-loop-product__title').text(),
           price: price,
