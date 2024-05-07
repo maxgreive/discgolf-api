@@ -96,8 +96,8 @@ async function scrapeThrownatur(query) {
   const $ = cheerio.load(html);
   const products = [];
   $('.product-container').each((i, el) => {
-    const $price = $(el).find('.current-price-container').text()?.trim();
-    const priceCleaned = $price.includes('Nur') ? $price.split('Nur')[1] : $price;
+    const $price = $(el).find('.current-price-container').text()?.toLowerCase().trim();
+    const priceCleaned = $price.includes('nur') ? $price.split('nur')[1] : $price;
     const price = parseInt([...priceCleaned].filter(char => parseInt(char) > -1).join(''));
     const stockStatusIcon = $(el).find('.shipping-info-short img').attr('src')
     const stockStatus = stockStatusIcon?.includes('bestellbar') ? 'available' : stockStatusIcon?.includes('gray') ? 'unknown' : 'unavailable';
