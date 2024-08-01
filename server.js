@@ -1,5 +1,8 @@
+import bodyParser from 'body-parser';
 import express from 'express';
 import dotenv from 'dotenv';
+import stripe from 'stripe';
+import axios from 'axios';
 import cors from 'cors';
 import { getTournaments, fetchOfficial, scrapeMetrix } from './scrapeTournaments.js';
 import { handleCache } from './scrapeStores.js';
@@ -8,6 +11,8 @@ import { getRatings } from './scrapeRating.js';
 dotenv.config();
 
 const app = express();
+
+app.use(bodyParser.text({ type: '*/*' }));
 
 if (process.env.NODE_ENV === 'production') {
   const allowedOrigin = process.env.ALLOWED_ORIGIN;
@@ -68,5 +73,53 @@ app.get('/ratings', async (req, res, next) => {
     res.status(500).json({ message: 'An error occured' });
   }
 });
+
+// Endpoint for stripe webhook
+// Transforms the data for a Discord notification
+
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+app.post('/stripe-webhook', (request, response) => {
+  const sig = request.headers['stripe-signature'];
+
+  let event = null;
+
+  try {
+    event = stripe.webhooks.constructEvent(request.body, sig, endpointSecret);
+  } catch (err) {
+    console.log('err:', err);
+    // invalid signature
+    response.status(400).end();
+    return;
+  }
+
+  let intent = null;
+  switch (event['type']) {
+    case 'payment_intent.succeeded':
+      intent = event.data.object;
+      console.log("Succeeded:", intent.id);
+      triggerDiscordNotification(intent);
+      break;
+    default:
+      console.log('Unhandled event type:', event['type']);
+  }
+
+  response.sendStatus(200);
+});
+
+const triggerDiscordNotification = async (intent) => {
+  const url = process.env.DISCORD_WEBHOOK_URL;
+  const data = {
+    content: `New payment received: Check stripe for details: https://dashboard.stripe.com/payments/${intent.id}`,
+    channel_id: process.env.DISCORD_CHANNEL_ID
+  };
+
+  try {
+    await axios.post(url, data);
+  } catch (error) {
+    console.error(error);
+  }
+  return;
+}
 
 app.listen(process.env.PORT || 8080, () => console.log(`Server has started on http://localhost:${process.env.PORT || 8080}`));
