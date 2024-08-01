@@ -14,7 +14,8 @@ const urls = {
   chooseyourdisc: 'https://www.chooseyourdisc.com/search/suggest.json?q={{query}}',
   discwolf: 'https://www.discwolf.com/search/suggest.json?q={{query}}',
   birdieShop: 'https://www.birdie-shop.com/search?q={{query}}',
-  discgolf4you: 'https://discgolf4you.com/page/{{page}}/?s={{query}}&post_type=product'
+  discgolf4you: 'https://discgolf4you.com/page/{{page}}/?s={{query}}&post_type=product',
+  hyzerStore: 'https://www.hyzer-store.de/page/{{page}}/?s={{query}}&post_type=product'
 }
 
 const crawledAt = new Date().toISOString();
@@ -39,8 +40,10 @@ async function scrapeStores(type, query) {
       return scrapeBirdieShop(query);
     case 'discgolf4you':
       return scrapeDiscgolf4You(query);
+    case 'hyzerstore':
+      return scrapeHyzerStore(query);
     default:
-      return false;
+      return `Invalid Store Identifier. Try one of the following: ${Object.keys(urls).join(', ').toLowerCase()}.`;
   }
 }
 
@@ -260,6 +263,38 @@ async function scrapeDiscgolf4You(query) {
           price: price,
           image: $nextPage(el).find('img').attr('data-src'),
           store: 'discgolf4you',
+          url: $nextPage(el).find('a').attr('href'),
+          stockStatus: 'unknown',
+          crawledAt: crawledAt
+        });
+      });
+    } catch (err) {
+      console.log('Error fetching product page', err);
+    }
+  }
+
+  return filterProducts(products, query);
+}
+
+async function scrapeHyzerStore(query) {
+  const url = urls.hyzerStore.replace('{{query}}', query).replace('{{page}}', '1');
+  const html = await axios.get(url).then(res => res.data)
+  const $ = cheerio.load(html);
+  let pagesLength = parseInt([...$('.woocommerce-pagination').find('li .page-numbers:not(.next)').last().text().trim()].filter(char => Number(char)).join('')) || 1;
+  const products = [];
+  for (let i = 1; i <= pagesLength; i++) {
+    const nextPageUrl = urls.hyzerStore.replace('{{query}}', query).replace('{{page}}', i)
+    try {
+      const nextPageHtml = await axios.get(nextPageUrl).then(res => res.data);
+      const $nextPage = cheerio.load(nextPageHtml);
+      const productItems = Array.from($nextPage('.product'));
+      productItems.forEach(async el => {
+        const price = parseInt([...$nextPage(el).find('.price span bdi').text().trim()].filter(char => parseInt(char) > -1).join(''));
+        products.push({
+          title: $nextPage(el).find('.woocommerce-loop-product__title').text(),
+          price: price,
+          image: $nextPage(el).find('img').attr('src'),
+          store: 'hyzerstore',
           url: $nextPage(el).find('a').attr('href'),
           stockStatus: 'unknown',
           crawledAt: crawledAt
