@@ -110,7 +110,7 @@ app.post('/stripe-webhook', (request, response) => {
 const triggerDiscordNotification = async (intent) => {
   const url = process.env.DISCORD_WEBHOOK_URL;
   const data = {
-    content: `New payment received: Check stripe for details: https://dashboard.stripe.com/payments/${intent.id}`,
+    content: `New payment over ${intent?.amount / 100} ${intent?.currency?.toUpperCase()} received: Check stripe for details: https://dashboard.stripe.com/payments/${intent?.id}`,
     channel_id: process.env.DISCORD_CHANNEL_ID
   };
 
