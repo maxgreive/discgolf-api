@@ -226,7 +226,7 @@ async function scrapeBirdieShop(query) {
     try {
       const productHtml = await axios.get(url).then(res => res.data);
       const $product = cheerio.load(productHtml);
-      $('.original-price').remove();
+      $product('.original-price').remove();
       const price = parseInt([...$product('.product-price').text().trim()].filter(char => parseInt(char) > -1).join(''));
       const image = $product('.ProductItem-gallery-slides-item-image').first().attr('data-src');
       return {
