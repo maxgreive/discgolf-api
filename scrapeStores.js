@@ -123,6 +123,7 @@ async function scrapeCrosslap(query) {
   const $ = cheerio.load(html);
   const products = [];
   $('.product-container').each((i, el) => {
+    $(el).find('.productOldPrice').remove();
     const price = parseInt([...$(el).find('.current-price-container').text()?.trim()].filter(char => parseInt(char) > -1).join(''));
     const stockStatusIcon = $(el).find('.shipping-info-short img').attr('src');
     const stockStatus = stockStatusIcon?.includes('/status/1') && !$(el).find('.ribbon-sold-out').length ? 'available' : 'unavailable';
