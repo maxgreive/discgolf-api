@@ -1,7 +1,7 @@
-import axios from "axios";
-import * as cheerio from "cheerio";
-import { getCache, setCache } from "./cache.js";
-import dotenv from "dotenv";
+import axios from 'axios';
+import * as cheerio from 'cheerio';
+import { getCache, setCache } from './cache.js';
+import dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -102,14 +102,20 @@ async function scrapeThrownatur(query) {
     const $price = $(el).find('.current-price-container').text()?.toLowerCase().trim();
     const priceCleaned = $price.includes('nur') ? $price.split('nur')[1] : $price;
     const price = parseInt([...priceCleaned].filter(char => parseInt(char) > -1).join(''));
-    const stockStatusIcon = $(el).find('.shipping-info-short img').attr('src')
+    const stockStatusIcon = $(el).find('.shipping-info-short img').attr('src');
     const stockStatus = stockStatusIcon?.includes('bestellbar') ? 'available' : stockStatusIcon?.includes('gray') ? 'unknown' : 'unavailable';
     products.push({
-      title: $(el).find('.product-url ').text()?.trim(),
+      title: $(el).find('.product-url').text()?.trim(),
       price: price,
       image: 'https://thrownatur-discgolf.de/' + $(el).find('.product-image img').attr('src')?.replace('thumbnail_images', 'info_images').trim(),
       store: 'thrownatur',
       url: $(el).find('a.product-url').attr('href')?.trim(),
+      flightNumbers: {
+        speed: $(el).find('.title-description .disc-guide-display-speed').text() || null,
+        glide: $(el).find('.title-description .disc-guide-display-glide').text() || null,
+        turn: $(el).find('.title-description .disc-guide-display-turn').text() || null,
+        fade: $(el).find('.title-description .disc-guide-display-fade').text() || null,
+      },
       stockStatus: stockStatus,
       crawledAt: crawledAt
     });
@@ -127,12 +133,22 @@ async function scrapeCrosslap(query) {
     const price = parseInt([...$(el).find('.current-price-container').text()?.trim()].filter(char => parseInt(char) > -1).join(''));
     const stockStatusIcon = $(el).find('.shipping-info-short img').attr('src');
     const stockStatus = stockStatusIcon?.includes('/status/1') && !$(el).find('.ribbon-sold-out').length ? 'available' : 'unavailable';
+
+    const flightString = $(el).find('.description').text().trim();
+    const flightRegex = /Speed (-?\d+), Glide (-?\d+), Turn (-?\d+), Fade (-?\d+)/;
+    const flightMatch = flightString?.match(flightRegex);
     products.push({
       title: $(el).find('.product-url ').text()?.trim(),
       price: price,
       image: 'https://discgolf-shop.de/' + $(el).find('.product-image img').attr('src')?.trim(),
       store: 'crosslap',
       url: $(el).find('a.product-url').attr('href')?.trim(),
+      flightNumbers: flightMatch ? {
+        speed: flightMatch[1],
+        glide: flightMatch[2],
+        turn: flightMatch[3],
+        fade: flightMatch[4],
+      } : {},
       stockStatus: stockStatus,
       crawledAt: crawledAt
     });
@@ -164,14 +180,23 @@ async function scrapeInsideTheCircle(query) {
   const url = urls.insidethecircle.replace('{{query}}', query);
   const products = await fetch(url).then(response => response.json()).then(searchData => {
     return searchData.resources.results.products.map(product => {
+      const flightRegex = /\|\s*(-?\d+)\s*\|\s*(-?\d+)\s*\|\s*(-?\d+)\s*\|\s*(-?\d+)\s*\|/;
+      const flightMatch = product?.body.match(flightRegex);
+      const flightNumbers = flightMatch ? {
+        speed: flightMatch[1],
+        glide: flightMatch[2],
+        turn: flightMatch[3],
+        fade: flightMatch[4],
+      } : {};
       return {
         title: product.title,
         price: formatPrice(product.price),
         image: product.image.replace('.png', '_400x.png'),
         store: 'inside-the-circle',
         url: 'https://www.inside-the-circle.de' + product.url,
-        stockStatus: product.available ? 'available' : 'unavailable',
+        flightNumbers,
         vendor: product.vendor,
+        stockStatus: product.available ? 'available' : 'unavailable',
         crawledAt: crawledAt
       }
     });
@@ -183,14 +208,21 @@ async function scrapeChooseYourDisc(query) {
   const url = urls.chooseyourdisc.replace('{{query}}', query);
   const products = await fetch(url).then(response => response.json()).then(searchData => {
     return searchData.resources.results.products.map(product => {
+      const flightNumbers = {
+        speed: product.tags.find(tag => tag.includes('Speed '))?.replace('Speed ', '') || null,
+        glide: product.tags.find(tag => tag.includes('Glide '))?.replace('Glide ', '') || null,
+        turn: product.tags.find(tag => tag.includes('Turn '))?.replace('Turn ', '') || null,
+        fade: product.tags.find(tag => tag.includes('Fade '))?.replace('Fade ', '') || null,
+      };
       return {
         title: product.title,
         price: formatPrice(product.price),
         image: product.image.replace('.jpg', '_400x.jpg'),
         store: 'choose-your-disc',
         url: 'https://www.chooseyourdisc.com' + product.url,
-        stockStatus: product.available ? 'available' : 'unavailable',
         vendor: product.vendor,
+        flightNumbers,
+        stockStatus: product.available ? 'available' : 'unavailable',
         crawledAt: crawledAt
       }
     });
@@ -202,14 +234,23 @@ async function scrapeDiscWolf(query) {
   const url = urls.discwolf.replace('{{query}}', query);
   const products = await fetch(url).then(response => response.json()).then(searchData => {
     return searchData.resources.results.products.map(product => {
+      const flightRegex = /Speed ([\d\.,]+) \/ Glide ([\d\.,]+) \/ Turn (-?[\d\.,]+) \/ Fade (-?[\d\.,]+)/;
+      const flightMatch = product.body.match(flightRegex);
+      const flightNumbers = flightMatch ? {
+        speed: flightMatch[1],
+        glide: flightMatch[2],
+        turn: flightMatch[3],
+        fade: flightMatch[4],
+      } : {};
       return {
         title: product.title,
         price: formatPrice(product.price),
         image: product.image.replace('.png', '_400x.png'),
         store: 'discwolf',
         url: 'https://www.discwolf.com' + product.url,
-        stockStatus: product.available ? 'available' : 'unavailable',
+        flightNumbers,
         vendor: product.vendor,
+        stockStatus: product.available ? 'available' : 'unavailable',
         crawledAt: crawledAt
       }
     });
@@ -230,12 +271,22 @@ async function scrapeBirdieShop(query) {
       $product('.original-price').remove();
       const price = parseInt([...$product('.product-price').text().trim()].filter(char => parseInt(char) > -1).join(''));
       const image = $product('.ProductItem-gallery-slides-item-image').first().attr('data-src');
+      const list = $product('.product-details ul').text();
+      const flightRegex = /Speed: (-?\d+)Glide: (-?\d+)Turn: (-?\d+)Fade: (-?\d+)/;
+      const flightMatch = list?.match(flightRegex);
+      const flightNumbers = flightMatch ? {
+        speed: flightMatch[1],
+        glide: flightMatch[2],
+        turn: flightMatch[3],
+        fade: flightMatch[4],
+      } : {};
       return {
         title: $(el).find('.sqs-title').text()?.trim(),
         price: price,
         image: image + '?format=500w',
         store: 'birdieshop',
         url: url,
+        flightNumbers,
         stockStatus: 'unknown',
         crawledAt: crawledAt
       };
@@ -260,12 +311,19 @@ async function scrapeDiscgolf4You(query) {
       const productItems = Array.from($nextPage('.product'));
       productItems.forEach(async el => {
         const price = parseInt([...$nextPage(el).find('.price span :not(del) span bdi, .price span > span bdi').text().trim()].filter(char => parseInt(char) > -1).join(''));
+        const flightNumbers = {
+          speed: $nextPage(el).find('.flight-attribute-speed b').text() || null,
+          glide: $nextPage(el).find('.flight-attribute-glide b').text() || null,
+          turn: $nextPage(el).find('.flight-attribute-turn b').text() || null,
+          fade: $nextPage(el).find('.flight-attribute-fade b').text() || null,
+        }
         products.push({
           title: $nextPage(el).find('.woocommerce-loop-product__title').text(),
           price: price,
           image: $nextPage(el).find('img').attr('data-src'),
           store: 'discgolf4you',
           url: $nextPage(el).find('a').attr('href'),
+          flightNumbers,
           stockStatus: 'unknown',
           crawledAt: crawledAt
         });
@@ -292,12 +350,19 @@ async function scrapeHyzerStore(query) {
       const productItems = Array.from($nextPage('.product'));
       productItems.forEach(async el => {
         const price = parseInt([...$nextPage(el).find('.price span bdi').text().trim()].filter(char => parseInt(char) > -1).join(''));
+        const flightNumbers = {
+          speed: $nextPage(el).find('.btn-speed').text() || null,
+          glide: $nextPage(el).find('.btn-glide').text() || null,
+          turn: $nextPage(el).find('.btn-turn').text() || null,
+          fade: $nextPage(el).find('.btn-fade').text() || null,
+        }
         products.push({
           title: $nextPage(el).find('.woocommerce-loop-product__title').text(),
           price: price,
           image: $nextPage(el).find('img').attr('src'),
           store: 'hyzerstore',
           url: $nextPage(el).find('a').attr('href'),
+          flightNumbers,
           stockStatus: 'unknown',
           crawledAt: crawledAt
         });
