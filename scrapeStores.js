@@ -345,10 +345,11 @@ async function scrapeHyzerStore(query) {
   for (let i = 1; i <= pagesLength; i++) {
     const nextPageUrl = urls.hyzerStore.replace('{{query}}', query).replace('{{page}}', i)
     try {
-      const nextPageHtml = await axios.get(nextPageUrl).then(res => res.data);
+      const nextPageHtml = i === 1 ? html : await axios.get(nextPageUrl).then(res => res.data);
       const $nextPage = cheerio.load(nextPageHtml);
       const productItems = Array.from($nextPage('.product'));
       productItems.forEach(async el => {
+        $nextPage(el).find('.price del bdi').remove();
         const price = parseInt([...$nextPage(el).find('.price span bdi').text().trim()].filter(char => parseInt(char) > -1).join(''));
         const flightNumbers = {
           speed: $nextPage(el).find('.btn-speed').text() || null,
