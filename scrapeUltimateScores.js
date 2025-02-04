@@ -30,11 +30,11 @@ export async function scrapeScores(id) {
                 },
                 startTime: $(columns[0]).text().trim(),
                 pitch: $(columns[1]).text().trim(),
-                date: dateString ?? null,
+                date: dateString ? dateString[0] : null,
                 location: metaInfo.find('a').text().trim(),
                 roundTitle: $(row).closest('tbody').find('th').text().trim().replace(seriesTitle, '').trim()
             }
-        }))
+        }));
         data = games.filter(Boolean);
     } catch (error) {
         console.error(error);
