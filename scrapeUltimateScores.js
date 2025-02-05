@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { getCell } from './utils.js';
 
 export async function scrapeScores(id) {
     const BASE_URL = 'https://scores.frisbeesportverband.de/';
@@ -12,25 +13,25 @@ export async function scrapeScores(id) {
         const html = await axios.get(endpoint).then(response => response.data);
         const $ = cheerio.load(html);
         const rows = $('.admintable.wide tr').toArray();
-        const seriesTitle = $('#seriesNav1722').text().trim();
+        const seriesTitle = $(`#seriesNav${id}`).text().trim();
         const games = await Promise.all(rows.map(async row => {
             const columns = $(row).find('td');
             if (!columns.length) return;
             const metaInfo = $(row).closest('table').prevUntil('h2').nextAll('h3').first();
             const regex = /\d+.\d+.\d{4}/;
             const dateString = metaInfo.text().trim().match(regex);
+            const time = getCell($(columns[0]));
             return {
                 teams: {
-                    home: $(columns[2]).text().trim(),
-                    away: $(columns[4]).text().trim(),
+                    home: getCell($(columns[2])),
+                    away: getCell($(columns[4])),
                 },
                 scores: {
-                    home: $(columns[5]).text().trim(),
-                    away: $(columns[7]).text().trim(),
+                    home: getCell($(columns[5]), true) ?? 0,
+                    away: getCell($(columns[7]), true) ?? 0,
                 },
-                startTime: $(columns[0]).text().trim(),
-                pitch: $(columns[1]).text().trim(),
-                date: dateString ? dateString[0] : null,
+                pitch: getCell($(columns[1])),
+                date: dateString ? formatDate(dateString[0], time) : null,
                 location: metaInfo.find('a').text().trim(),
                 roundTitle: $(row).closest('tbody').find('th').text().trim().replace(seriesTitle, '').trim()
             }
@@ -41,4 +42,12 @@ export async function scrapeScores(id) {
     }
 
     return data;
+}
+
+function formatDate(string, time) {
+    let newString = string.split('.').reverse().join('-');
+    if (time) {
+        newString += ' ' + time + ':00 GMT';
+    }
+    return new Date(newString)
 }

@@ -21,3 +21,8 @@ export function removeDuplicates(tournaments) {
 
   return result;
 }
+
+export function getCell(element, number = false) {
+  if (number) return parseInt(element.text().trim().replace(/\D/g, ''));
+  return element.text().trim();
+}

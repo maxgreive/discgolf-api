@@ -1,6 +1,7 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
 import { getCache, setCache } from "./cache.js";
+import { getCell } from "./utils.js";
 
 import dotenv from 'dotenv';
 dotenv.config();
@@ -45,11 +46,6 @@ async function scrapeRatings() {
     console.error(error);
     return { message: 'An error occured' };
   }
-}
-
-function getCell(element, number = false) {
-  if (number) return parseInt(element.text().trim().replace(/\D/g, ''));
-  return element.text().trim();
 }
 
 export async function getRatings() {
