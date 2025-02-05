@@ -7,7 +7,7 @@ import cors from 'cors';
 import { getTournaments, fetchOfficial, scrapeMetrix } from './scrapeTournaments.js';
 import { handleCache } from './scrapeStores.js';
 import { getRatings } from './scrapeRating.js';
-import { scrapeScores } from './scrapeUltimateScores.js'
+import { scrapeScores, scrapeUltiorganizer } from './scrapeUltimateScores.js'
 
 dotenv.config();
 
@@ -76,6 +76,16 @@ app.get('/ratings', async (req, res, next) => {
 });
 
 // Ultiorganizer
+
+app.get('/scores', async (req, res, next) => {
+  try {
+    const data = await scrapeUltiorganizer();
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'An error occured' });
+  }
+});
 
 app.get('/scores/:id', async (req, res, next) => {
   const { id } = req.params;

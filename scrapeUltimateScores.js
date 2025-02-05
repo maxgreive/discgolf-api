@@ -2,9 +2,10 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { getCell } from './utils.js';
 
+const BASE_URL = 'https://scores.frisbeesportverband.de/';
+const endpoint = new URL(BASE_URL);
+
 export async function scrapeScores(id) {
-    const BASE_URL = 'https://scores.frisbeesportverband.de/';
-    const endpoint = new URL(BASE_URL);
     endpoint.searchParams.set('view', 'games');
     endpoint.searchParams.set('series', id);
 
@@ -37,6 +38,26 @@ export async function scrapeScores(id) {
             }
         }));
         data = games.filter(Boolean);
+    } catch (error) {
+        console.error(error);
+    }
+
+    return data;
+}
+
+export async function scrapeUltiorganizer() {
+    let data = [];
+    try {
+        const html = await axios.get(endpoint).then(response => response.data);
+        const $ = cheerio.load(html);
+
+        const series = $('.menuserieslevel').toArray();
+        series.forEach(series => {
+            data.push({
+                title: $(series).find('a').text(),
+                id: $(series).find('a').attr('href').replace('#', ''),
+            });
+        });
     } catch (error) {
         console.error(error);
     }
