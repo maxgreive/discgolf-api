@@ -65,6 +65,16 @@ app.get('/products/:type/:query', async (req, res, next) => {
   }
 });
 
+app.get('/product-feed', async (req, res, next) => {
+  try {
+    const data = await handleCache('product-feed', 'all');
+    res.json(data);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'An error occured' });
+  }
+});
+
 app.get('/ratings', async (req, res, next) => {
   try {
     const data = await getRatings()

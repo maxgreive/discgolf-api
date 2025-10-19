@@ -1,27 +1,18 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { getCache, setCache } from './cache.js';
+import shops from './shopList.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const urls = {
-  dgStore: 'https://www.discgolfstore.de/search/?qs={{query}}&af=96',
-  thrownatur: 'https://thrownatur-discgolf.de/de/advanced_search_result.php?keywords={{query}}&listing_count=288',
-  crosslap: 'https://www.discgolf-shop.de/advanced_search_result.php?keywords={{query}}&listing_count=1200',
-  frisbeeshop: 'https://www.frisbeeshop.com/search?search={{query}}&order=topseller&limit=100',
-  insidethecircle: 'https://www.inside-the-circle.de/search/suggest.json?q={{query}}',
-  chooseyourdisc: 'https://www.chooseyourdisc.com/search/suggest.json?q={{query}}',
-  discwolf: 'https://www.discwolf.com/search/suggest.json?q={{query}}',
-  birdieShop: 'https://www.birdie-shop.com/search?q={{query}}',
-  discgolf4you: 'https://discgolf4you.com/page/{{page}}/?s={{query}}&post_type=product',
-  hyzerStore: 'https://www.hyzer-store.de/page/{{page}}/?s={{query}}&post_type=product'
-}
-
 const crawledAt = new Date().toISOString();
+const NEW_PRODUCT_DAYS = parseInt(process.env.NEW_PRODUCT_DAYS) || 14;
 
 async function scrapeStores(type, query) {
   switch (type) {
+    case 'product-feed':
+      return getShopifyProductFeeds();
     case 'discgolfstore':
       return scrapeDGStore(query);
     case 'thrownatur':
@@ -43,8 +34,42 @@ async function scrapeStores(type, query) {
     case 'hyzerstore':
       return scrapeHyzerStore(query);
     default:
-      return `Invalid Store Identifier. Try one of the following: ${Object.keys(urls).join(', ').toLowerCase()}.`;
+      return `Invalid Store Identifier. Try one of the following: ${Object.keys(shops).join(', ').toLowerCase()}.`;
   }
+}
+
+async function getShopifyProductFeeds() {
+  const endpoints = Object.values(shops).filter(shop => shop.shopSystem === 'shopify' && shop.feed).map(shop => shop.feed);
+
+  const allProducts = [];
+  for (const endpoint of endpoints) {
+    try {
+      const baseURL = new URL(endpoint).origin;
+      const products = await fetch(endpoint).then(response => response.json()).then(data => {
+        return data.products.filter(product => {
+          const createdAt = new Date(product.created_at);
+          const newProductTime = new Date();
+          newProductTime.setDate(newProductTime.getDate() - NEW_PRODUCT_DAYS);
+          return createdAt >= newProductTime;
+        }).map(product => ({
+          title: product.title,
+          price: formatPrice(product.variants[0].price),
+          image: product.images[0]?.src.replace('.png', '_400x.png') || null,
+          store: endpoint.includes('inside-the-circle') ? 'insidethecircle' : endpoint.includes('discwolf') ? 'discwolf' : 'unknown',
+          url: product.handle ? `${baseURL}/products/${product.handle}` : null,
+          vendor: product.vendor,
+          stockStatus: product.variants.some(variant => variant.available) ? 'available' : 'unavailable',
+          crawledAt: crawledAt,
+          createdAt: product.created_at
+        }));
+      });
+
+      allProducts.push(...products);
+    } catch (err) {
+      console.log('Error fetching product feed', err);
+    }
+  }
+  return allProducts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
 function filterProducts(products, query) {
@@ -61,7 +86,7 @@ function filterProducts(products, query) {
 }
 
 async function scrapeDGStore(query) {
-  const url = urls.dgStore.replace('{{query}}', query);
+  const url = shops.dgStore.url.replace('{{query}}', query);
   const html = await axios.get(url).then(res => res.data);
   const $ = cheerio.load(html);
   const products = [];
@@ -94,7 +119,7 @@ async function scrapeDGStore(query) {
 }
 
 async function scrapeThrownatur(query) {
-  const url = urls.thrownatur.replace('{{query}}', query);
+  const url = shops.thrownatur.url.replace('{{query}}', query);
   const html = await axios.get(url).then(res => res.data);
   const $ = cheerio.load(html);
   const products = [];
@@ -124,7 +149,7 @@ async function scrapeThrownatur(query) {
 }
 
 async function scrapeCrosslap(query) {
-  const url = urls.crosslap.replace('{{query}}', query);
+  const url = shops.crosslap.url.replace('{{query}}', query);
   const html = await axios.get(url).then(res => res.data);
   const $ = cheerio.load(html);
   const products = [];
@@ -157,7 +182,7 @@ async function scrapeCrosslap(query) {
 }
 
 async function scrapeFrisbeeshop(query) {
-  const url = urls.frisbeeshop.replace('{{query}}', query);
+  const url = shops.frisbeeshop.url.replace('{{query}}', query);
   const html = await axios.get(url).then(res => res.data);
   const $ = cheerio.load(html);
   const products = [];
@@ -177,7 +202,7 @@ async function scrapeFrisbeeshop(query) {
 }
 
 async function scrapeInsideTheCircle(query) {
-  const url = urls.insidethecircle.replace('{{query}}', query);
+  const url = shops.insidethecircle.url.replace('{{query}}', query);
   const products = await fetch(url).then(response => response.json()).then(searchData => {
     return searchData.resources.results.products.map(product => {
       const flightRegex = /\|\s*(-?\d+)\s*\|\s*(-?\d+)\s*\|\s*(-?\d+)\s*\|\s*(-?\d+)\s*\|/;
@@ -205,7 +230,7 @@ async function scrapeInsideTheCircle(query) {
 }
 
 async function scrapeChooseYourDisc(query) {
-  const url = urls.chooseyourdisc.replace('{{query}}', query);
+  const url = shops.chooseyourdisc.url.replace('{{query}}', query);
   const products = await fetch(url).then(response => response.json()).then(searchData => {
     return searchData.resources.results.products.map(product => {
       const flightNumbers = {
@@ -231,7 +256,7 @@ async function scrapeChooseYourDisc(query) {
 }
 
 async function scrapeDiscWolf(query) {
-  const url = urls.discwolf.replace('{{query}}', query);
+  const url = shops.discwolf.url.replace('{{query}}', query);
   const products = await fetch(url).then(response => response.json()).then(searchData => {
     return searchData.resources.results.products.map(product => {
       const flightRegex = /Speed ([\d\.,]+) \/ Glide ([\d\.,]+) \/ Turn (-?[\d\.,]+) \/ Fade (-?[\d\.,]+)/;
@@ -259,7 +284,7 @@ async function scrapeDiscWolf(query) {
 }
 
 async function scrapeBirdieShop(query) {
-  const url = urls.birdieShop.replace('{{query}}', query);
+  const url = shops.birdieShop.url.replace('{{query}}', query);
   const html = await axios.get(url).then(res => res.data);
   const $ = cheerio.load(html);
   const productItems = Array.from($('.search-result'));
@@ -298,13 +323,13 @@ async function scrapeBirdieShop(query) {
 }
 
 async function scrapeDiscgolf4You(query) {
-  const url = urls.discgolf4you.replace('{{query}}', query).replace('{{page}}', '1');
+  const url = shops.discgolf4you.url.replace('{{query}}', query).replace('{{page}}', '1');
   const html = await axios.get(url).then(res => res.data)
   const $ = cheerio.load(html);
   let pagesLength = parseInt([...$('#pagination-container a.page-link:not(.next)').last().text().trim()].filter(char => Number(char)).join('')) || 1;
   const products = [];
   for (let i = 1; i <= pagesLength; i++) {
-    const nextPageUrl = urls.discgolf4you.replace('{{query}}', query).replace('{{page}}', i)
+    const nextPageUrl = shops.discgolf4you.url.replace('{{query}}', query).replace('{{page}}', i)
     try {
       const nextPageHtml = await axios.get(nextPageUrl).then(res => res.data);
       const $nextPage = cheerio.load(nextPageHtml);
@@ -337,13 +362,13 @@ async function scrapeDiscgolf4You(query) {
 }
 
 async function scrapeHyzerStore(query) {
-  const url = urls.hyzerStore.replace('{{query}}', query).replace('{{page}}', '1');
+  const url = shops.hyzerStore.url.replace('{{query}}', query).replace('{{page}}', '1');
   const html = await axios.get(url).then(res => res.data)
   const $ = cheerio.load(html);
   let pagesLength = parseInt([...$('.woocommerce-pagination').find('li .page-numbers:not(.next)').last().text().trim()].filter(char => Number(char)).join('')) || 1;
   const products = [];
   for (let i = 1; i <= pagesLength; i++) {
-    const nextPageUrl = urls.hyzerStore.replace('{{query}}', query).replace('{{page}}', i)
+    const nextPageUrl = shops.hyzerStore.url.replace('{{query}}', query).replace('{{page}}', i)
     try {
       const nextPageHtml = i === 1 ? html : await axios.get(nextPageUrl).then(res => res.data);
       const $nextPage = cheerio.load(nextPageHtml);
