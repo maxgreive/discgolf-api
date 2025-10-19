@@ -56,7 +56,7 @@ async function getShopifyProductFeeds() {
           price: formatPrice(product.variants[0].price),
           image: product.images[0]?.src.replace('.png', '_400x.png') || null,
           store: endpoint.includes('inside-the-circle') ? 'insidethecircle' : endpoint.includes('discwolf') ? 'discwolf' : 'unknown',
-          url: product.handle ? `${baseURL}/products/${product.handle}` : null,
+          url: product.handle ? cleanURL(`${baseURL}/products/${product.handle}`) : null,
           vendor: product.vendor,
           stockStatus: product.variants.some(variant => variant.available) ? 'available' : 'unavailable',
           crawledAt: crawledAt,
@@ -98,7 +98,7 @@ async function scrapeDGStore(query) {
       price: formatPrice($('meta[itemprop="price"]').attr('content')),
       image: $('meta[itemprop="image"]').attr('content')?.trim(),
       store: 'discgolfstore',
-      url: $('.breadcrumb-item.active a').attr('href')?.trim(),
+      url: cleanURL($('.breadcrumb-item.active a').attr('href')),
       stockStatus: 'available',
       crawledAt: crawledAt
     });
@@ -109,7 +109,7 @@ async function scrapeDGStore(query) {
         price: formatPrice($(el).find('meta[itemprop="price"]').attr('content')),
         image: $(el).find('meta[itemprop="image"]').attr('content')?.trim(),
         store: 'discgolfstore',
-        url: $(el).find('.productbox-title a').attr('href')?.trim(),
+        url: cleanURL($(el).find('.productbox-title a').attr('href')),
         stockStatus: 'available',
         crawledAt: crawledAt
       });
@@ -134,7 +134,7 @@ async function scrapeThrownatur(query) {
       price: price,
       image: 'https://thrownatur-discgolf.de/' + $(el).find('.product-image img').attr('src')?.replace('thumbnail_images', 'info_images').trim(),
       store: 'thrownatur',
-      url: $(el).find('a.product-url').attr('href')?.trim(),
+      url: cleanURL($(el).find('a.product-url').attr('href')),
       flightNumbers: {
         speed: $(el).find('.title-description .disc-guide-display-speed').text() || null,
         glide: $(el).find('.title-description .disc-guide-display-glide').text() || null,
@@ -167,7 +167,7 @@ async function scrapeCrosslap(query) {
       price: price,
       image: 'https://discgolf-shop.de/' + $(el).find('.product-image img').attr('src')?.trim(),
       store: 'crosslap',
-      url: $(el).find('a.product-url').attr('href')?.trim(),
+      url: cleanURL($(el).find('a.product-url').attr('href')),
       flightNumbers: flightMatch ? {
         speed: flightMatch[1],
         glide: flightMatch[2],
@@ -193,7 +193,7 @@ async function scrapeFrisbeeshop(query) {
       price: price,
       image: $(el).find('.product-image-wrapper img').attr('srcset')?.trim()?.split(' 400w')[0]?.split('800w, ')[1] || $(el).find('.product-image-wrapper img').attr('src')?.trim(),
       store: 'frisbeeshop',
-      url: $(el).find('a.product-name').attr('href')?.trim(),
+      url: cleanURL($(el).find('a.product-name').attr('href')),
       stockStatus: 'unknown',
       crawledAt: crawledAt
     });
@@ -218,7 +218,7 @@ async function scrapeInsideTheCircle(query) {
         price: formatPrice(product.price),
         image: product.image.replace('.png', '_400x.png'),
         store: 'insidethecircle',
-        url: 'https://www.inside-the-circle.de' + product.url,
+        url: cleanURL('https://www.inside-the-circle.de' + product.url),
         flightNumbers,
         vendor: product.vendor,
         stockStatus: product.available ? 'available' : 'unavailable',
@@ -244,7 +244,7 @@ async function scrapeChooseYourDisc(query) {
         price: formatPrice(product.price),
         image: product.image.replace('.jpg', '_400x.jpg'),
         store: 'chooseyourdisc',
-        url: 'https://www.chooseyourdisc.com' + product.url,
+        url: cleanURL('https://www.chooseyourdisc.com' + product.url),
         vendor: product.vendor,
         flightNumbers,
         stockStatus: product.available ? 'available' : 'unavailable',
@@ -272,7 +272,7 @@ async function scrapeDiscWolf(query) {
         price: formatPrice(product.price),
         image: product.image.replace('.png', '_400x.png'),
         store: 'discwolf',
-        url: 'https://www.discwolf.com' + product.url,
+        url: cleanURL('https://www.discwolf.com' + product.url),
         flightNumbers,
         vendor: product.vendor,
         stockStatus: product.available ? 'available' : 'unavailable',
@@ -310,7 +310,7 @@ async function scrapeBirdieShop(query) {
         price: price,
         image: image + '?format=500w',
         store: 'birdieshop',
-        url: url,
+        url: cleanURL(url),
         flightNumbers,
         stockStatus: 'unknown',
         crawledAt: crawledAt
@@ -347,7 +347,7 @@ async function scrapeDiscgolf4You(query) {
           price: price,
           image: $nextPage(el).find('img').attr('data-src'),
           store: 'discgolf4you',
-          url: $nextPage(el).find('a').attr('href'),
+          url: cleanURL($nextPage(el).find('a').attr('href')),
           flightNumbers,
           stockStatus: 'unknown',
           crawledAt: crawledAt
@@ -387,7 +387,7 @@ async function scrapeHyzerStore(query) {
           price: price,
           image: $nextPage(el).find('img').attr('src'),
           store: 'hyzerstore',
-          url: $nextPage(el).find('a').attr('href'),
+          url: cleanURL($nextPage(el).find('a').attr('href')),
           flightNumbers,
           stockStatus: 'unknown',
           crawledAt: crawledAt
@@ -419,4 +419,15 @@ function formatPrice(str) {
   const euro = new Number(dotNotation);
   const cents = euro * 100;
   return parseInt(cents);
+}
+
+function cleanURL(string) {
+  try {
+    const parsedURL = new URL(string.trim());
+    parsedURL.search = '';
+    parsedURL.hash = '';
+    return parsedURL.toString();
+  } catch (err) {
+    return string.trim();
+  }
 }
