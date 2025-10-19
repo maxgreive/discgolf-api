@@ -74,7 +74,8 @@ async function getShopifyProductFeeds() {
 
 function filterProducts(products, query) {
   if (!products.length) return [];
-  const queryWords = query.toLowerCase().split(' ');
+  // strip 'innova' from query because DGStore does not include it in titles
+  const queryWords = query.toLowerCase().split(' ').filter(word => word !== 'innova');
   // remove products that don't contain not all of the query words
   return products.filter(product => {
     const title = (product.title + (product.vendor ? ' ' + product.vendor : '')).toLowerCase();
