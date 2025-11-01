@@ -291,12 +291,14 @@ async function scrapeBirdieShop(query) {
   const productItems = Array.from($('.search-result'));
   const products = await Promise.all(productItems.map(async (el) => {
     const url = 'https://www.birdie-shop.com' + $(el).attr('data-url');
+    if (!url.includes('/p/')) return null;
     try {
       const productHtml = await axios.get(url).then(res => res.data);
       const $product = cheerio.load(productHtml);
       $product('.original-price').remove();
       const price = parseInt([...$product('.product-price').text().trim()].filter(char => parseInt(char) > -1).join(''));
-      const image = $product('.ProductItem-gallery-slides-item-image').first().attr('data-src');
+      const image = $product('.product-gallery-slides-item-image')?.first()?.attr('data-src');
+      const stockStatus = $product('.product-status .sold-out').length ? 'unavailable' : 'unknown';
       const list = $product('.product-details ul').text();
       const flightRegex = /Speed: (-?\d+)Glide: (-?\d+)Turn: (-?\d+)Fade: (-?\d+)/;
       const flightMatch = list?.match(flightRegex);
@@ -313,7 +315,7 @@ async function scrapeBirdieShop(query) {
         store: 'birdieshop',
         url: cleanURL(url),
         flightNumbers,
-        stockStatus: 'unknown',
+        stockStatus,
         crawledAt: crawledAt
       };
     } catch (err) {
