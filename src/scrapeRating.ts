@@ -1,16 +1,20 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
-import { getCache, setCache } from "./cache.js";
-import { getCell } from "./utils.js";
+import { getCache, setCache } from "./cache.ts";
+import { getCell } from "./utils.ts";
 
 import dotenv from 'dotenv';
 dotenv.config();
 
-const endpoint = process.env.RATING_URL;
+const endpoint = process.env.RATING_URL ? new URL(process.env.RATING_URL) : null;
 
 async function scrapeRatings() {
+  if (!endpoint) {
+    console.error('RATING_URL not configured');
+    return { message: 'RATING_URL not configured' };
+  }
   try {
-    const html = await axios.get(endpoint).then(response => response.data);
+    const html = await axios.get<string>(endpoint.toString()).then(response => response.data);
     const $ = cheerio.load(html);
 
     const divisionCount = getDivisionCount($);
@@ -18,9 +22,10 @@ async function scrapeRatings() {
     const rows = $('#table tbody tr').toArray();
     const ratings = await Promise.all(rows.map(async element => {
       const columns = $(element).find('td');
-      const club = getCell($(columns[8]));
-      const link = process.env.RATING_URL + '/' + $(columns[3]).find('a').attr('href');
-      const ratingChangeSymbol = getCell($(columns[6])).slice(-1).charCodeAt();
+      const club = getCell($(columns[8])).toString();
+      const pathname = $(columns[3]).find('a').attr('href');
+      const link = pathname ? new URL(pathname, endpoint).toString() : null;
+      const ratingChangeSymbol = getCell($(columns[6])).toString().slice(-1).charCodeAt(0);
       const ratingChange = ratingChangeSymbol === 8593 ? 1 : ratingChangeSymbol === 8595 ? -1 : null;
 
       return {
@@ -31,7 +36,7 @@ async function scrapeRatings() {
         divisionCount: divisionCount[getCell($(columns[5]))] || 0,
         gtNumber: getCell($(columns[4]), true),
         division: getCell($(columns[5])),
-        lastRound: new Date(getCell($(columns[9])).split('.').reverse().join('-')),
+        lastRound: new Date(getCell($(columns[9])).toString().split('.').reverse().join('-')),
         roundCount: getCell($(columns[10]), true),
         dmRounds: getCell($(columns[11]), true),
         rank: getCell($(columns[0]), true),
@@ -61,10 +66,10 @@ export async function getRatings() {
 }
 
 
-function getDivisionCount($) {
+function getDivisionCount($: cheerio.Root) {
   const divisions = $('#table tbody tr').toArray().map(element => getCell($(element).find('td').eq(5)));
 
-  const divisionCount = divisions.reduce((acc, division) => {
+  const divisionCount = divisions.reduce<Record<string, number>>((acc, division) => {
     if (!acc[division]) acc[division] = 0;
     acc[division]++;
     return acc;

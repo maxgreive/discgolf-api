@@ -1,13 +1,15 @@
 import bodyParser from 'body-parser';
-import express from 'express';
+import express from "express";
 import dotenv from 'dotenv';
-import stripe from 'stripe';
+import Stripe from 'stripe';
 import axios from 'axios';
 import cors from 'cors';
-import { getTournaments, fetchOfficial, scrapeMetrix } from './scrapeTournaments.js';
-import { handleCache } from './scrapeStores.js';
-import { getRatings } from './scrapeRating.js';
-import { scrapeScores, scrapeUltiorganizer } from './scrapeUltimateScores.js'
+import { getTournaments, fetchOfficial, scrapeMetrix } from './scrapeTournaments.ts';
+import { handleCache } from './scrapeStores.ts';
+import { getRatings } from './scrapeRating.ts';
+import { scrapeScores, scrapeUltiorganizer } from './scrapeUltimateScores.ts';
+
+import type { Request, Response, NextFunction } from "express";
 
 dotenv.config();
 
@@ -22,7 +24,7 @@ if (process.env.NODE_ENV === 'production') {
       // allow requests with no origin
       // (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
-      if (allowedOrigin.indexOf(origin) === -1) {
+      if (allowedOrigin?.indexOf(origin) === -1) {
         var msg = `The CORS policy for this site does not allow access from origin ${origin}.`;
         return callback(new Error(msg), false);
       }
@@ -33,7 +35,7 @@ if (process.env.NODE_ENV === 'production') {
   app.use(cors({ origin: '*' }));
 }
 
-app.use((err, req, res, next) => {
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error(err.stack);
   res.status(500).send({ message: err.message });
 });
@@ -44,6 +46,11 @@ app.get('/tournaments', async (req, res, next) => getTournaments('official', fet
 app.get('/tournaments/metrix', async (req, res, next) => getTournaments('metrix', scrapeMetrix)(req, res, next));
 
 app.get('/bagtag', async (req, res, next) => {
+  if (!process.env.BAGTAG_ENDPOINT) {
+    res.status(500).json({ message: 'BAGTAG_ENDPOINT not configured' });
+    return;
+  }
+
   try {
     const response = await fetch(process.env.BAGTAG_ENDPOINT);
     const body = await response.json();
@@ -113,42 +120,45 @@ app.get('/scores/:id', async (req, res, next) => {
 // Transforms the data for a Discord notification
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: "2024-06-20",
+});
 
-app.post('/stripe-webhook', (request, response) => {
+app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (request, response) => {
   const sig = request.headers['stripe-signature'];
+  if (!sig || !endpointSecret) return;
 
-  let event = null;
+  let event: Stripe.Event;
 
   try {
     event = stripe.webhooks.constructEvent(request.body, sig, endpointSecret);
   } catch (err) {
     console.log('err:', err);
-    // invalid signature
     response.status(400).end();
     return;
   }
 
-  let intent = null;
-  switch (event['type']) {
-    case 'payment_intent.succeeded':
-      intent = event.data.object;
+  switch (event.type) {
+    case 'payment_intent.succeeded': {
+      const intent = event.data.object as Stripe.PaymentIntent;
       console.log("Succeeded:", intent.id);
       triggerDiscordNotification(intent);
       break;
+    }
     default:
-      console.log('Unhandled event type:', event['type']);
+      console.log('Unhandled event type:', event.type);
   }
 
   response.sendStatus(200);
 });
 
-const triggerDiscordNotification = async (intent) => {
+const triggerDiscordNotification = async (intent: Stripe.PaymentIntent) => {
   const url = process.env.DISCORD_WEBHOOK_URL;
   const channelId = process.env.DISCORD_CHANNEL_ID;
   if (!url || !channelId) return;
 
   const data = {
-    content: `New payment over ${intent?.amount / 100} ${intent?.currency?.toUpperCase()} received: Check stripe for details: https://dashboard.stripe.com/payments/${intent?.id}`,
+    content: `New payment over ${intent.amount / 100} ${intent.currency.toUpperCase()} received: Check Stripe for details: https://dashboard.stripe.com/payments/${intent.id}`,
     channel_id: channelId,
   };
 
@@ -157,7 +167,6 @@ const triggerDiscordNotification = async (intent) => {
   } catch (error) {
     console.error(error);
   }
-  return;
-}
+};
 
 app.listen(process.env.PORT || 8080, () => console.log(`Server has started on http://localhost:${process.env.PORT || 8080}`));

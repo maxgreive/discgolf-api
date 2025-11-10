@@ -1,17 +1,16 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { getCell } from './utils.js';
+import { getCell } from './utils.ts';
 
 const BASE_URL = 'https://scores.frisbeesportverband.de/';
 const endpoint = new URL(BASE_URL);
 
-export async function scrapeScores(id) {
+export async function scrapeScores(id: string) {
     endpoint.searchParams.set('view', 'games');
     endpoint.searchParams.set('series', id);
 
-    let data;
     try {
-        const html = await axios.get(endpoint).then(response => response.data);
+        const html = await axios.get<string>(endpoint.toString()).then(response => response.data);
         const $ = cheerio.load(html);
         const rows = $('.admintable.wide tr').toArray();
         const seriesTitle = $(`#seriesNav${id}`).text().trim();
@@ -22,7 +21,7 @@ export async function scrapeScores(id) {
             const metaInfo = $(row).closest('table').prevUntil('h2').nextAll('h3').first();
             const regex = /\d+\.\d+\.\d{4}/;
             const dateString = metaInfo.text().trim().match(regex);
-            const time = getCell($(columns[0]));
+            const time = getCell($(columns[0])).toString();
 
             return {
                 teams: {
@@ -39,18 +38,18 @@ export async function scrapeScores(id) {
                 roundTitle: $(row).closest('tbody').find('th').text().trim().replace(seriesTitle, '').trim() ?? ''
             }
         }));
-        data = games.filter(Boolean);
+        return games.filter(Boolean);
     } catch (error) {
         console.error(error);
     }
 
-    return data ?? [];
+    return [];
 }
 
 export async function scrapeUltiorganizer() {
-    let data = [];
+    let data: { title: string; id: string }[] = [];
     try {
-        const html = await axios.get(endpoint).then(response => response.data);
+        const html = await axios.get<string>(endpoint.toString()).then(response => response.data);
         const $ = cheerio.load(html);
 
         const series = $('.menuserieslevel').toArray();
@@ -70,7 +69,7 @@ export async function scrapeUltiorganizer() {
     return data ?? [];
 }
 
-function formatDate(string, time) {
+function formatDate(string: string, time: string): Date | null {
     if (!string) return null;
 
     let newString = string.split('.').reverse().join('-');
