@@ -1,7 +1,7 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
-import { getCache, setCache } from "./cache.ts";
-import { getCell } from "./utils.ts";
+import { getCache, setCache } from "./cache.js";
+import { getCell } from "./utils.js";
 
 import dotenv from 'dotenv';
 dotenv.config();

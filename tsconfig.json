@@ -1,18 +1,18 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "ES2020",
+    "module": "nodenext",
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
+    "moduleResolution": "nodenext",
     "allowSyntheticDefaultImports": true,
-    "moduleResolution": "node",
-    "allowImportingTsExtensions": true,
-    "noEmit": true
+    "skipLibCheck": true
   },
   "include": [
-    "src/**/*"
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
   ]
 }

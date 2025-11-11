@@ -1,4 +1,4 @@
-import type { TournamentOutput, RelatedTournament } from "./types";
+import type { TournamentOutput, RelatedTournament } from "./types.js";
 
 
 export function removeDuplicates(tournaments: TournamentOutput[]): TournamentOutput[] {

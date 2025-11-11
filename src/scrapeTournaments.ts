@@ -1,8 +1,8 @@
 import axios from 'axios';
-import { removeDuplicates } from './utils.ts';
-import { getCache, setCache } from './cache.ts';
+import { removeDuplicates } from './utils.js';
+import { getCache, setCache } from './cache.js';
 import type { Request, Response, NextFunction } from 'express';
-import type { OfficialTournament, MetrixTournament, TournamentOutput } from './types.ts';
+import type { OfficialTournament, MetrixTournament, TournamentOutput } from './types.js';
 
 import dotenv from 'dotenv';
 dotenv.config();

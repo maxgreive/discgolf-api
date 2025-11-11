@@ -4,10 +4,10 @@ import dotenv from 'dotenv';
 import Stripe from 'stripe';
 import axios from 'axios';
 import cors from 'cors';
-import { getTournaments, fetchOfficial, scrapeMetrix } from './scrapeTournaments.ts';
-import { handleCache } from './scrapeStores.ts';
-import { getRatings } from './scrapeRating.ts';
-import { scrapeScores, scrapeUltiorganizer } from './scrapeUltimateScores.ts';
+import { getTournaments, fetchOfficial, scrapeMetrix } from './scrapeTournaments.js';
+import { handleCache } from './scrapeStores.js';
+import { getRatings } from './scrapeRating.js';
+import { scrapeScores, scrapeUltiorganizer } from './scrapeUltimateScores.js';
 
 import type { Request, Response, NextFunction } from "express";
 

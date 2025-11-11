@@ -6,8 +6,10 @@
   },
   "name": "dg-turniere-scraper",
   "version": "1.0.0",
-  "main": "dist/server.js",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
