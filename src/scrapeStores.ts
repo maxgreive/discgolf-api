@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { getCache, setCache } from './cache.js';
-import shops from './shopList.js';
+import { getCache, setCache } from './cache';
+import shops from './shopList';
 import dotenv from 'dotenv';
 
 dotenv.config();

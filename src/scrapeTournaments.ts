@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { removeDuplicates } from './utils.js';
-import { getCache, setCache } from './cache.js';
+import { removeDuplicates } from './utils';
+import { getCache, setCache } from './cache';
 import type { Request, Response, NextFunction } from 'express';
 import type { OfficialTournament, MetrixTournament, TournamentOutput } from './types.js';
 

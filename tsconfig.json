@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "nodenext",
+    "target": "ESNext",
+    "module": "ESNext",
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
-    "moduleResolution": "nodenext",
+    "moduleResolution": "Bundler",
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true
   },
@@ -14,5 +14,8 @@
   ],
   "exclude": [
     "node_modules"
-  ]
+  ],
+  "tsc-alias": {
+    "resolveFullPaths": true
+  }
 }
