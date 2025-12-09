@@ -72,14 +72,15 @@ async function scrapeStores(type: string, query: string) {
 }
 
 async function getShopifyProductFeeds() {
-  const endpoints = Object.values(shops).filter(shop => shop.shopSystem === 'shopify' && shop.feed).map(shop => shop.feed);
+  const feedShops = Object.values(shops).filter(shop => shop.shopSystem === 'shopify' && shop.feed);
 
   const allProducts = [];
-  for (const endpoint of endpoints) {
-    if (!endpoint) continue;
+  for (const shop of feedShops) {
+    const shopFeed = shop.feed;
+    if (!shop || !shopFeed) continue;
     try {
-      const baseURL = new URL(endpoint).origin;
-      const products = await fetch(endpoint).then(response => response.json()).then(data => {
+      const baseURL = new URL(shopFeed).origin;
+      const products = await fetch(shopFeed).then(response => response.json()).then(data => {
         return data.products.filter((product: ShopifyProduct) => {
           const createdAt = new Date(product.created_at);
           const newProductTime = new Date();
@@ -89,7 +90,7 @@ async function getShopifyProductFeeds() {
           title: product.title,
           price: formatPrice(product.variants[0].price),
           image: product.images[0]?.src.replace('.png', '_400x.png') || null,
-          store: endpoint.includes('inside-the-circle') ? 'insidethecircle' : endpoint.includes('discwolf') ? 'discwolf' : 'unknown',
+          store: shop.title || 'unknown',
           url: product.handle ? cleanURL(`${baseURL}/products/${product.handle}`) : null,
           vendor: product.vendor,
           stockStatus: product.variants.some(variant => variant.available) ? 'available' : 'unavailable',
@@ -121,7 +122,9 @@ function filterProducts(products: DefaultProduct[], query: string) {
 }
 
 async function scrapeDGStore(query: string) {
-  const url = shops.dgStore.url.replace('{{query}}', query);
+  const shop = shops.find(s => s.title === 'discgolfstore');
+  if (!shop) return null;
+  const url = shop.url.replace('{{query}}', query);
   const html = await axios.get<string>(url).then(res => res.data);
   const $ = cheerio.load(html);
   const products: DefaultProduct[] = [];
@@ -154,7 +157,9 @@ async function scrapeDGStore(query: string) {
 }
 
 async function scrapeThrownatur(query: string) {
-  const url = shops.thrownatur.url.replace('{{query}}', query);
+  const shop = shops.find(s => s.title === 'thrownatur');
+  if (!shop) return null;
+  const url = shop.url.replace('{{query}}', query);
   const html = await axios.get<string>(url).then(res => res.data);
   const $ = cheerio.load(html);
   const products: DefaultProduct[] = [];
@@ -184,7 +189,9 @@ async function scrapeThrownatur(query: string) {
 }
 
 async function scrapeCrosslap(query: string) {
-  const url = shops.crosslap.url.replace('{{query}}', query);
+  const shop = shops.find(s => s.title === 'crosslap');
+  if (!shop) return null;
+  const url = shop.url.replace('{{query}}', query);
   const html = await axios.get<string>(url).then(res => res.data);
   const $ = cheerio.load(html);
   const products: DefaultProduct[] = [];
@@ -218,7 +225,9 @@ async function scrapeCrosslap(query: string) {
 }
 
 async function scrapeFrisbeeshop(query: string) {
-  const url = shops.frisbeeshop.url.replace('{{query}}', query);
+  const shop = shops.find(s => s.title === 'frisbeeshop');
+  if (!shop) return null;
+  const url = shop.url.replace('{{query}}', query);
   const html = await axios.get<string>(url).then(res => res.data);
   const $ = cheerio.load(html);
   const products: DefaultProduct[] = [];
@@ -238,20 +247,12 @@ async function scrapeFrisbeeshop(query: string) {
   return filterProducts(products, query);
 }
 
-interface ITCProduct {
-  title: string;
-  body: string;
-  price: string;
-  image: string;
-  url: string;
-  vendor: string;
-  available: boolean;
-}
-
 async function scrapeInsideTheCircle(query: string) {
-  const url = shops.insidethecircle.url.replace('{{query}}', query);
+  const shop = shops.find(s => s.title === 'insidethecircle');
+  if (!shop) return null;
+  const url = shop.url.replace('{{query}}', query);
   const products: DefaultProduct[] = await fetch(url).then(response => response.json()).then(searchData => {
-    return searchData.resources.results.products.map((product: ITCProduct) => {
+    return searchData.resources.results.products.map((product: ShopifyProduct) => {
       const flightRegex = /\|\s*(-?\d+)\s*\|\s*(-?\d+)\s*\|\s*(-?\d+)\s*\|\s*(-?\d+)\s*\|/;
       const flightMatch = product?.body.match(flightRegex);
       const flightNumbers = flightMatch ? {
@@ -263,7 +264,7 @@ async function scrapeInsideTheCircle(query: string) {
       return {
         title: product.title,
         price: formatPrice(product.price),
-        image: product.image.replace('.png', '_400x.png'),
+        image: product.image?.replace('.png', '_400x.png'),
         store: 'insidethecircle',
         url: cleanURL('https://www.inside-the-circle.de' + product.url),
         flightNumbers,
@@ -277,7 +278,9 @@ async function scrapeInsideTheCircle(query: string) {
 }
 
 async function scrapeChooseYourDisc(query: string) {
-  const url = shops.chooseyourdisc.url.replace('{{query}}', query);
+  const shop = shops.find(s => s.title === 'chooseyourdisc');
+  if (!shop) return null;
+  const url = shop.url.replace('{{query}}', query);
   const products: DefaultProduct[] = await fetch(url).then(response => response.json()).then(searchData => {
     return searchData.resources.results.products.map((product: ShopifyProduct) => {
       const flightNumbers = {
@@ -303,7 +306,9 @@ async function scrapeChooseYourDisc(query: string) {
 }
 
 async function scrapeDiscWolf(query: string) {
-  const url = shops.discwolf.url.replace('{{query}}', query);
+  const shop = shops.find(s => s.title === 'discwolf');
+  if (!shop) return null;
+  const url = shop.url.replace('{{query}}', query);
   const products: DefaultProduct[] = await fetch(url).then(response => response.json()).then(searchData => {
     return searchData.resources.results.products.map((product: ShopifyProduct) => {
       const flightRegex = /Speed ([\d\.,]+) \/ Glide ([\d\.,]+) \/ Turn (-?[\d\.,]+) \/ Fade (-?[\d\.,]+)/;
@@ -331,7 +336,9 @@ async function scrapeDiscWolf(query: string) {
 }
 
 async function scrapeBirdieShop(query: string) {
-  const url = shops.birdieShop.url.replace('{{query}}', query);
+  const shop = shops.find(s => s.title === 'birdieShop');
+  if (!shop) return null;
+  const url = shop.url.replace('{{query}}', query);
   const html = await axios.get<string>(url).then(res => res.data);
   const $ = cheerio.load(html);
   const productItems = Array.from($('.search-result'));
@@ -376,14 +383,16 @@ async function scrapeBirdieShop(query: string) {
 }
 
 async function scrapeDiscgolf4You(query: string) {
-  const url = shops.discgolf4you.url.replace('{{query}}', query).replace('{{page}}', '1');
+  const shop = shops.find(s => s.title === 'discgolf4you');
+  if (!shop) return null;
+  const url = shop.url.replace('{{query}}', query).replace('{{page}}', '1');
   const html = await axios.get<string>(url).then(res => res.data)
   const $ = cheerio.load(html);
   let pagesLength = parseInt([...$('#pagination-container a.page-link:not(.next)').last().text().trim()].filter(char => Number(char)).join('')) || 1;
   const products: DefaultProduct[] = [];
 
   for (let i = 1; i <= pagesLength; i++) {
-    const nextPageUrl = shops.discgolf4you.url.replace('{{query}}', query).replace('{{page}}', i.toString())
+    const nextPageUrl = shop.url.replace('{{query}}', query).replace('{{page}}', i.toString())
     try {
       const nextPageHtml = await axios.get<string>(nextPageUrl).then(res => res.data);
       const $nextPage = cheerio.load(nextPageHtml);
@@ -416,14 +425,16 @@ async function scrapeDiscgolf4You(query: string) {
 }
 
 async function scrapeHyzerStore(query: string) {
-  const url = shops.hyzerStore.url.replace('{{query}}', query).replace('{{page}}', '1');
+  const shop = shops.find(s => s.title === 'hyzerStore');
+  if (!shop) return null;
+  const url = shop.url.replace('{{query}}', query).replace('{{page}}', '1');
   const html = await axios.get<string>(url).then(res => res.data)
   const $ = cheerio.load(html);
   let pagesLength = parseInt([...$('.woocommerce-pagination').find('li .page-numbers:not(.next)').last().text().trim()].filter(char => Number(char)).join('')) || 1;
   const products: DefaultProduct[] = [];
 
   for (let i = 1; i <= pagesLength; i++) {
-    const nextPageUrl = shops.hyzerStore.url.replace('{{query}}', query).replace('{{page}}', i.toString())
+    const nextPageUrl = shop.url.replace('{{query}}', query).replace('{{page}}', i.toString())
     try {
       const nextPageHtml = i === 1 ? html : await axios.get<string>(nextPageUrl).then(res => res.data);
       const $nextPage = cheerio.load(nextPageHtml);
