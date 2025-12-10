@@ -10,21 +10,18 @@ export default [
     feed: null,
     shopSystem: 'gambio',
     title: 'thrownatur',
-
   },
   {
     url: 'https://www.discgolf-shop.de/advanced_search_result.php?keywords={{query}}&listing_count=1200',
     feed: null,
     shopSystem: 'gambio',
     title: 'crosslap',
-
   },
   {
     url: 'https://www.frisbeeshop.com/search?search={{query}}&order=topseller&limit=100',
     feed: null,
     shopSystem: 'shopware',
     title: 'frisbeeshop',
-
   },
   {
     url: 'https://www.inside-the-circle.de/search/suggest.json?q={{query}}',
@@ -61,5 +58,5 @@ export default [
     feed: null,
     shopSystem: 'woocommerce',
     title: 'hyzerstore',
-  }
-]
+  },
+];

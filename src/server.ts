@@ -1,15 +1,14 @@
-import bodyParser from 'body-parser';
-import express from "express";
-import dotenv from 'dotenv';
-import Stripe from 'stripe';
 import axios from 'axios';
+import bodyParser from 'body-parser';
 import cors from 'cors';
-import { getTournaments, fetchOfficial, scrapeMetrix } from './scrapeTournaments';
-import { handleCache } from './scrapeStores';
+import dotenv from 'dotenv';
+import type { NextFunction, Request, Response } from 'express';
+import express from 'express';
+import Stripe from 'stripe';
 import { getRatings } from './scrapeRating';
+import { handleCache } from './scrapeStores';
+import { fetchOfficial, getTournaments, scrapeMetrix } from './scrapeTournaments';
 import { scrapeScores, scrapeUltiorganizer } from './scrapeUltimateScores';
-
-import type { Request, Response, NextFunction } from "express";
 
 dotenv.config();
 
@@ -19,33 +18,38 @@ app.use(bodyParser.text({ type: '*/*' }));
 
 if (process.env.NODE_ENV === 'production') {
   const allowedOrigin = process.env.ALLOWED_ORIGIN;
-  app.use(cors({
-    origin: function (origin, callback) {
-      // allow requests with no origin
-      // (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-      if (allowedOrigin?.indexOf(origin) === -1) {
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // allow requests with no origin
+        // (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
         var msg = `The CORS policy for this site does not allow access from origin ${origin}.`;
-        return callback(new Error(msg), false);
-      }
-      return callback(null, true);
-    }
-  }));
+        if (allowedOrigin?.indexOf(origin) === -1) {
+          return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+      },
+    }),
+  );
 } else {
   app.use(cors({ origin: '*' }));
 }
 
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, _: Request, res: Response, __: NextFunction) => {
   console.error(err.stack);
   res.status(500).send({ message: err.message });
 });
 
+app.get('/tournaments', async (req, res, next) =>
+  getTournaments('official', fetchOfficial)(req, res, next),
+);
 
-app.get('/tournaments', async (req, res, next) => getTournaments('official', fetchOfficial)(req, res, next));
+app.get('/tournaments/metrix', async (req, res, next) =>
+  getTournaments('metrix', scrapeMetrix)(req, res, next),
+);
 
-app.get('/tournaments/metrix', async (req, res, next) => getTournaments('metrix', scrapeMetrix)(req, res, next));
-
-app.get('/bagtag', async (req, res, next) => {
+app.get('/bagtag', async (_, res) => {
   if (!process.env.BAGTAG_ENDPOINT) {
     res.status(500).json({ message: 'BAGTAG_ENDPOINT not configured' });
     return;
@@ -59,12 +63,12 @@ app.get('/bagtag', async (req, res, next) => {
     console.error(error);
     res.status(500).json({ message: 'An error occured' });
   }
-})
+});
 
-app.get('/products/:type/:query', async (req, res, next) => {
+app.get('/products/:type/:query', async (req, res) => {
   const { type, query } = req.params;
   try {
-    const data = await handleCache(type, query)
+    const data = await handleCache(type, query);
     res.json(data);
   } catch (error) {
     console.error(error);
@@ -72,7 +76,7 @@ app.get('/products/:type/:query', async (req, res, next) => {
   }
 });
 
-app.get('/product-feed', async (req, res, next) => {
+app.get('/product-feed', async (_, res) => {
   try {
     const data = await handleCache('product-feed', 'all');
     res.json(data);
@@ -82,9 +86,9 @@ app.get('/product-feed', async (req, res, next) => {
   }
 });
 
-app.get('/ratings', async (req, res, next) => {
+app.get('/ratings', async (_, res) => {
   try {
-    const data = await getRatings()
+    const data = await getRatings();
     res.json(data);
   } catch (error) {
     console.error(error);
@@ -94,7 +98,7 @@ app.get('/ratings', async (req, res, next) => {
 
 // Ultiorganizer
 
-app.get('/scores', async (req, res, next) => {
+app.get('/scores', async (_, res) => {
   try {
     const data = await scrapeUltiorganizer();
     res.json(data);
@@ -104,7 +108,7 @@ app.get('/scores', async (req, res, next) => {
   }
 });
 
-app.get('/scores/:id', async (req, res, next) => {
+app.get('/scores/:id', async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -121,7 +125,7 @@ app.get('/scores/:id', async (req, res, next) => {
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2024-06-20",
+  apiVersion: '2024-06-20',
 });
 
 app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (request, response) => {
@@ -141,7 +145,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (request,
   switch (event.type) {
     case 'payment_intent.succeeded': {
       const intent = event.data.object as Stripe.PaymentIntent;
-      console.log("Succeeded:", intent.id);
+      console.log('Succeeded:', intent.id);
       triggerDiscordNotification(intent);
       break;
     }
@@ -169,4 +173,6 @@ const triggerDiscordNotification = async (intent: Stripe.PaymentIntent) => {
   }
 };
 
-app.listen(process.env.PORT || 8080, () => console.log(`Server has started on http://localhost:${process.env.PORT || 8080}`));
+app.listen(process.env.PORT || 8080, () =>
+  console.log(`Server has started on http://localhost:${process.env.PORT || 8080}`),
+);

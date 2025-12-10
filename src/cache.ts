@@ -1,5 +1,6 @@
-import memjs from 'memjs';
 import dotenv from 'dotenv';
+import memjs from 'memjs';
+
 dotenv.config();
 
 // Create client safely — if MEMCACHIER_SERVERS is invalid,
@@ -32,7 +33,7 @@ export function getCache(key: string): Promise<unknown | null> {
 export function setCache(
   key: string,
   value: unknown,
-  expiry: number = Number(process.env.CACHE_EXPIRY) || 3600
+  expiry: number = Number(process.env.CACHE_EXPIRY) || 3600,
 ): Promise<void> {
   return new Promise((resolve) => {
     try {

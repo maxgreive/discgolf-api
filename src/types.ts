@@ -1,10 +1,10 @@
 export interface MetrixTournament {
-  0: string;    // event id
-  1: string;    // title with arrow
-  2: number;    // latitude
-  3: number;    // longitude
-  4: string;    // start date
-  7: string;    // location with arrow
+  0: string; // event id
+  1: string; // title with arrow
+  2: number; // latitude
+  3: number; // longitude
+  4: string; // start date
+  7: string; // location with arrow
 }
 
 export interface OfficialTournament {
