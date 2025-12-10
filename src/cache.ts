@@ -6,11 +6,7 @@ dotenv.config();
 // Create client safely — if MEMCACHIER_SERVERS is invalid,
 // memjs will still create a client but will error on calls.
 // That's fine because we'll swallow those errors.
-const mc = memjs.Client.create(process.env.MEMCACHIER_SERVERS, {
-  failover: true,
-  timeout: 1,
-  keepAlive: true,
-});
+const mc = memjs.Client.create();
 
 export function getCache(key: string): Promise<unknown | null> {
   return new Promise((resolve) => {
