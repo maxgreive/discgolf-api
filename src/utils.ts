@@ -36,11 +36,14 @@ export function removeDuplicates(tournaments: TournamentOutput[]): TournamentOut
   return result;
 }
 
+export function getCell(element: cheerio.Cheerio, number?: false): string;
+export function getCell(element: cheerio.Cheerio, number: true): number;
+
 export function getCell(element: cheerio.Cheerio, number = false): string | number {
   const text = element.text().trim();
 
   if (number) {
-    const num = parseInt(text.replace(/\D/g, ''), 10);
+    const num = Number(text.replace(/\D/g, ''));
     return Number.isNaN(num) ? 0 : num;
   }
 

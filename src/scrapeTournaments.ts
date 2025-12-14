@@ -2,22 +2,18 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import type { NextFunction, Request, Response } from 'express';
 import { getCache, setCache } from './cache';
+import env from './env';
 import type { MetrixTournament, OfficialTournament, TournamentOutput } from './types.js';
 import { removeDuplicates } from './utils';
 
 dotenv.config();
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = env.NODE_ENV === 'production';
 
-export function getTournaments(type: string, callback: () => Promise<any>) {
+export function getTournaments<T>(type: string, callback: () => Promise<T>) {
   return async (_: Request, res: Response, next: NextFunction) => {
     try {
-      let result: any;
-      if (isProduction) {
-        result = await handleCache(type, callback);
-      } else {
-        result = await callback();
-      }
+      const result = isProduction ? await handleCache(type, callback) : await callback();
       res.send(result);
     } catch (err) {
       next(err);
@@ -25,16 +21,17 @@ export function getTournaments(type: string, callback: () => Promise<any>) {
   };
 }
 
-async function handleCache(type: string, callback: () => Promise<any>) {
-  const cacheData = await getCache(type);
+async function handleCache<T>(type: string, callback: () => Promise<T>): Promise<T> {
+  const cacheData = await getCache<T>(type);
   if (cacheData) return cacheData;
+
   const result = await callback();
   await setCache(type, result);
   return result;
 }
 
 async function getMetrixTournaments() {
-  const url = process.env.METRIX_URL;
+  const url = env.METRIX_URL;
   if (!url) throw new Error('METRIX_URL not configured');
   const { data } = await axios.get<MetrixTournament[]>(url);
   const metrixTournaments = data;
@@ -67,14 +64,10 @@ export async function scrapeMetrix(): Promise<string> {
 }
 
 async function getOfficialTournaments() {
-  if (
-    !process.env.OFFICIAL_URL ||
-    !process.env.TOURNAMENTS_API_TOKEN ||
-    !process.env.TOURNAMENTS_API_SECRET
-  ) {
+  if (!env.OFFICIAL_URL || !env.TOURNAMENTS_API_TOKEN || !env.TOURNAMENTS_API_SECRET) {
     throw new Error('Official tournament environment variables not configured');
   }
-  const url = `${process.env.OFFICIAL_URL}?p=api&key=tournaments-actual&token=${process.env.TOURNAMENTS_API_TOKEN}&secret=${process.env.TOURNAMENTS_API_SECRET}`;
+  const url = `${env.OFFICIAL_URL}?p=api&key=tournaments-actual&token=${env.TOURNAMENTS_API_TOKEN}&secret=${env.TOURNAMENTS_API_SECRET}`;
   const { data } = await axios.get<OfficialTournament[]>(url);
   const officialTournaments = data;
   return { officialTournaments };
@@ -89,11 +82,11 @@ export async function fetchOfficial(): Promise<string> {
       (tournament: OfficialTournament): TournamentOutput => ({
         title: tournament.event_name || 'Kein Name vergeben',
         event_id: tournament.event_id,
-        link: `${process.env.OFFICIAL_URL}?p=events&sp=view&id=${tournament.event_id}`,
+        link: `${env.OFFICIAL_URL}?p=events&sp=view&id=${tournament.event_id}`,
         location: tournament.location,
         coords: {
-          lat: parseFloat(tournament.location_latitude) ?? null,
-          lng: parseFloat(tournament.location_longitude) ?? null,
+          lat: Number.parseFloat(tournament.location_latitude) ?? null,
+          lng: Number.parseFloat(tournament.location_longitude) ?? null,
         },
         badge: tournament.status === 2 ? 'vorläufig' : undefined,
         dates: {
