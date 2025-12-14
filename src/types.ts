@@ -50,3 +50,20 @@ export interface TournamentOutput {
   event_id?: number;
   relatedTournaments?: RelatedTournament[];
 }
+
+export interface Rating {
+  firstName: string;
+  lastName: string;
+  rating: number;
+  ratingChange: 1 | -1 | null;
+  divisionCount: number;
+  gtNumber: number;
+  division: string;
+  lastRound: Date;
+  roundCount: number;
+  dmRounds: number;
+  rank: number;
+  divisionRank: number;
+  link: string;
+  club: string;
+}

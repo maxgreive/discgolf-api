@@ -36,6 +36,9 @@ export function removeDuplicates(tournaments: TournamentOutput[]): TournamentOut
   return result;
 }
 
+export function getCell(element: cheerio.Cheerio, number?: false): string;
+export function getCell(element: cheerio.Cheerio, number: true): number;
+
 export function getCell(element: cheerio.Cheerio, number = false): string | number {
   const text = element.text().trim();
 

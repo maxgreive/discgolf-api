@@ -20,6 +20,7 @@ const EnvSchema = z.object({
   TOURNAMENTS_API_TOKEN: z.string(),
   PORT: z.string().optional(),
   NEW_PRODUCT_DAYS: z.string().optional(),
+  REDIS_URL: z.string().optional(),
 });
 
 export type EnvSchema = z.infer<typeof EnvSchema>;

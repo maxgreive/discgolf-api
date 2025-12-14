@@ -1,42 +1,37 @@
 import dotenv from 'dotenv';
-import memjs from 'memjs';
+import Redis from 'ioredis';
 import env from './env';
 
 dotenv.config();
 
-// Create client safely — if MEMCACHIER_SERVERS is invalid,
-// memjs will still create a client but will error on calls.
-// That's fine because we'll swallow those errors.
-const mc = memjs.Client.create();
+// // Create Redis client from HEROKU REDIS_URL
+// If REDIS_URL is not set, defaults to localhost
 
-export function getCache<T>(key: string): Promise<T | null> {
-  return new Promise((resolve) => {
-    mc.get(key, (err, val) => {
-      if (err || !val) {
-        return resolve(null);
-      }
+const redis = new Redis(env.REDIS_URL || 'redis://localhost:6379');
 
-      try {
-        resolve(JSON.parse(val.toString()) as T);
-      } catch {
-        resolve(null);
-      }
-    });
-  });
+const DEFAULT_EXPIRY = Number(env.CACHE_EXPIRY) || 3600;
+
+export async function getCache<T>(key: string): Promise<T | null> {
+  try {
+    const val = await redis.get(key);
+    console.log('val', val);
+    if (!val) return null;
+    console.log('val', val);
+    return JSON.parse(val) as T;
+  } catch {
+    return null;
+  }
 }
 
-export function setCache<T>(
+export async function setCache<T>(
   key: string,
   value: T,
-  expiry: number = Number(env.CACHE_EXPIRY) || 3600,
+  expiry: number = DEFAULT_EXPIRY,
 ): Promise<void> {
-  return new Promise((resolve) => {
-    try {
-      mc.set(key, JSON.stringify(value), { expires: expiry }, () => {
-        resolve();
-      });
-    } catch {
-      resolve();
-    }
-  });
+  try {
+    // 'EX' sets expiry in seconds
+    await redis.set(key, JSON.stringify(value), 'EX', expiry);
+  } catch {
+    // Swallow errors like Memcached version
+  }
 }

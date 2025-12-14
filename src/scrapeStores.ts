@@ -68,7 +68,7 @@ async function scrapeStores(type: string, query: string) {
     case 'hyzerstore':
       return scrapeHyzerStore(query);
     default:
-      return `Invalid Store Identifier. Try one of the following: ${Object.keys(shops).join(', ').toLowerCase()}.`;
+      return `Invalid Store Identifier. Try one of the following: ${shops.map((s) => s.title.toLowerCase())}.`;
   }
 }
 
