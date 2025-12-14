@@ -2,11 +2,12 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import dotenv from 'dotenv';
 import { getCache, setCache } from './cache';
+import env from './env';
 import { getCell } from './utils';
 
 dotenv.config();
 
-const endpoint = process.env.RATING_URL ? new URL(process.env.RATING_URL) : null;
+const endpoint = env.RATING_URL ? new URL(env.RATING_URL) : null;
 
 async function scrapeRatings() {
   if (!endpoint) {
@@ -34,7 +35,7 @@ async function scrapeRatings() {
           firstName: getCell($(columns[2])),
           lastName: getCell($(columns[3])),
           rating: getCell($(columns[6]), true),
-          ratingChange: ratingChange,
+          ratingChange,
           divisionCount: divisionCount[getCell($(columns[5]))] || 0,
           gtNumber: getCell($(columns[4]), true),
           division: getCell($(columns[5])),
@@ -43,7 +44,7 @@ async function scrapeRatings() {
           dmRounds: getCell($(columns[11]), true),
           rank: getCell($(columns[0]), true),
           divisionRank: getCell($(columns[1]), true),
-          link: link,
+          link,
           club: club
             .replace('Disc Golf', 'DG')
             .replace('Discgolf', 'DG')
@@ -61,7 +62,7 @@ async function scrapeRatings() {
 }
 
 export async function getRatings() {
-  if (process.env.NODE_ENV === 'production') {
+  if (env.NODE_ENV === 'production') {
     const cache = await getCache('ratings');
     if (cache) return cache;
     const ratings = await scrapeRatings();

@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
 import Stripe from 'stripe';
+import env from './env';
 import { getRatings } from './scrapeRating';
 import { handleCache } from './scrapeStores';
 import { fetchOfficial, getTournaments, scrapeMetrix } from './scrapeTournaments';
@@ -16,15 +17,15 @@ const app = express();
 
 app.use(bodyParser.text({ type: '*/*' }));
 
-if (process.env.NODE_ENV === 'production') {
-  const allowedOrigin = process.env.ALLOWED_ORIGIN;
+if (env.NODE_ENV === 'production') {
+  const allowedOrigin = env.ALLOWED_ORIGIN;
   app.use(
     cors({
       origin: (origin, callback) => {
         // allow requests with no origin
         // (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
-        var msg = `The CORS policy for this site does not allow access from origin ${origin}.`;
+        const msg = `The CORS policy for this site does not allow access from origin ${origin}.`;
         if (allowedOrigin?.indexOf(origin) === -1) {
           return callback(new Error(msg), false);
         }
@@ -50,13 +51,13 @@ app.get('/tournaments/metrix', async (req, res, next) =>
 );
 
 app.get('/bagtag', async (_, res) => {
-  if (!process.env.BAGTAG_ENDPOINT) {
+  if (!env.BAGTAG_ENDPOINT) {
     res.status(500).json({ message: 'BAGTAG_ENDPOINT not configured' });
     return;
   }
 
   try {
-    const response = await fetch(process.env.BAGTAG_ENDPOINT);
+    const response = await fetch(env.BAGTAG_ENDPOINT);
     const body = await response.json();
     res.json(body);
   } catch (error) {
@@ -123,8 +124,8 @@ app.get('/scores/:id', async (req, res) => {
 // Endpoint for stripe webhook
 // Transforms the data for a Discord notification
 
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+const endpointSecret = env.STRIPE_WEBHOOK_SECRET;
+const stripe = new Stripe(env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2024-06-20',
 });
 
@@ -137,7 +138,7 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (request,
   try {
     event = stripe.webhooks.constructEvent(request.body, sig, endpointSecret);
   } catch (err) {
-    console.log('err:', err);
+    console.error('err:', err);
     response.status(400).end();
     return;
   }
@@ -145,20 +146,19 @@ app.post('/stripe-webhook', express.raw({ type: 'application/json' }), (request,
   switch (event.type) {
     case 'payment_intent.succeeded': {
       const intent = event.data.object as Stripe.PaymentIntent;
-      console.log('Succeeded:', intent.id);
       triggerDiscordNotification(intent);
       break;
     }
     default:
-      console.log('Unhandled event type:', event.type);
+      console.warn('Unhandled event type:', event.type);
   }
 
   response.sendStatus(200);
 });
 
-const triggerDiscordNotification = async (intent: Stripe.PaymentIntent) => {
-  const url = process.env.DISCORD_WEBHOOK_URL;
-  const channelId = process.env.DISCORD_CHANNEL_ID;
+async function triggerDiscordNotification(intent: Stripe.PaymentIntent) {
+  const url = env.DISCORD_WEBHOOK_URL;
+  const channelId = env.DISCORD_CHANNEL_ID;
   if (!url || !channelId) return;
 
   const data = {
@@ -171,8 +171,9 @@ const triggerDiscordNotification = async (intent: Stripe.PaymentIntent) => {
   } catch (error) {
     console.error(error);
   }
-};
+}
 
-app.listen(process.env.PORT || 8080, () =>
-  console.log(`Server has started on http://localhost:${process.env.PORT || 8080}`),
+app.listen(env.PORT || 8080, () =>
+  // eslint-disable-next-line no-console
+  console.log(`Server has started on http://localhost:${env.PORT || 8080}`),
 );

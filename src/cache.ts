@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import memjs from 'memjs';
+import env from './env';
 
 dotenv.config();
 
@@ -8,28 +9,26 @@ dotenv.config();
 // That's fine because we'll swallow those errors.
 const mc = memjs.Client.create();
 
-export function getCache(key: string): Promise<unknown | null> {
+export function getCache<T>(key: string): Promise<T | null> {
   return new Promise((resolve) => {
     mc.get(key, (err, val) => {
-      if (err) {
+      if (err || !val) {
         return resolve(null);
       }
-      if (!val) {
-        return resolve(null);
-      }
+
       try {
-        return resolve(JSON.parse(val.toString()));
+        resolve(JSON.parse(val.toString()) as T);
       } catch {
-        return resolve(null);
+        resolve(null);
       }
     });
   });
 }
 
-export function setCache(
+export function setCache<T>(
   key: string,
-  value: unknown,
-  expiry: number = Number(process.env.CACHE_EXPIRY) || 3600,
+  value: T,
+  expiry: number = Number(env.CACHE_EXPIRY) || 3600,
 ): Promise<void> {
   return new Promise((resolve) => {
     try {

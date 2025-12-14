@@ -2,12 +2,13 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import dotenv from 'dotenv';
 import { getCache, setCache } from './cache';
+import env from './env';
 import shops from './shopList';
 
 dotenv.config();
 
 const crawledAt = new Date().toISOString();
-const NEW_PRODUCT_DAYS = Number(process.env.NEW_PRODUCT_DAYS || '14');
+const NEW_PRODUCT_DAYS = Number(env.NEW_PRODUCT_DAYS || '14');
 
 interface ShopifyProduct {
   title: string;
@@ -103,7 +104,7 @@ async function getShopifyProductFeeds() {
                 stockStatus: product.variants.some((variant) => variant.available)
                   ? 'available'
                   : 'unavailable',
-                crawledAt: crawledAt,
+                crawledAt,
                 createdAt: product.created_at,
               }),
             );
@@ -111,7 +112,7 @@ async function getShopifyProductFeeds() {
 
       allProducts.push(...products);
     } catch (err) {
-      console.log('Error fetching product feed', err);
+      console.error('Error fetching product feed', err);
     }
   }
   return allProducts.sort(
@@ -153,7 +154,7 @@ async function scrapeDGStore(query: string) {
       store: 'discgolfstore',
       url: cleanURL($('.breadcrumb-item.active a').attr('href')),
       stockStatus: 'available',
-      crawledAt: crawledAt,
+      crawledAt,
     });
   } else {
     $('.product-wrapper').each((_, el) => {
@@ -164,7 +165,7 @@ async function scrapeDGStore(query: string) {
         store: 'discgolfstore',
         url: cleanURL($(el).find('.productbox-title a').attr('href')),
         stockStatus: 'available',
-        crawledAt: crawledAt,
+        crawledAt,
       });
     });
   }
@@ -190,14 +191,12 @@ async function scrapeThrownatur(query: string) {
         : 'unavailable';
     products.push({
       title: $(el).find('.product-url').text()?.trim(),
-      price: price,
-      image:
-        'https://thrownatur-discgolf.de/' +
-        $(el)
-          .find('.product-image img')
-          .attr('src')
-          ?.replace('thumbnail_images', 'info_images')
-          .trim(),
+      price,
+      image: `https://thrownatur-discgolf.de/${$(el)
+        .find('.product-image img')
+        .attr('src')
+        ?.replace('thumbnail_images', 'info_images')
+        .trim()}`,
       store: 'thrownatur',
       url: cleanURL($(el).find('a.product-url').attr('href')),
       flightNumbers: {
@@ -206,8 +205,8 @@ async function scrapeThrownatur(query: string) {
         turn: $(el).find('.title-description .disc-guide-display-turn').text() || null,
         fade: $(el).find('.title-description .disc-guide-display-fade').text() || null,
       },
-      stockStatus: stockStatus,
-      crawledAt: crawledAt,
+      stockStatus,
+      crawledAt,
     });
   });
   return filterProducts(products, query);
@@ -239,7 +238,7 @@ async function scrapeCrosslap(query: string) {
     const flightMatch = flightString?.match(flightRegex);
     products.push({
       title: $(el).find('.product-url ').text()?.trim(),
-      price: price,
+      price,
       image: `https://discgolf-shop.de/${$(el).find('.product-image img').attr('src')?.trim()}`,
       store: 'crosslap',
       url: cleanURL($(el).find('a.product-url').attr('href')),
@@ -251,8 +250,8 @@ async function scrapeCrosslap(query: string) {
             fade: flightMatch[4],
           }
         : undefined,
-      stockStatus: stockStatus,
-      crawledAt: crawledAt,
+      stockStatus,
+      crawledAt,
     });
   });
   return filterProducts(products, query);
@@ -274,7 +273,7 @@ async function scrapeFrisbeeshop(query: string) {
     );
     products.push({
       title: $(el).find('a.product-name').text()?.trim(),
-      price: price,
+      price,
       image:
         $(el)
           .find('.product-image-wrapper img')
@@ -285,7 +284,7 @@ async function scrapeFrisbeeshop(query: string) {
       store: 'frisbeeshop',
       url: cleanURL($(el).find('a.product-name').attr('href')),
       stockStatus: 'unknown',
-      crawledAt: crawledAt,
+      crawledAt,
     });
   });
   return filterProducts(products, query);
@@ -318,7 +317,7 @@ async function scrapeInsideTheCircle(query: string) {
           flightNumbers,
           vendor: product.vendor,
           stockStatus: product.available ? 'available' : 'unavailable',
-          crawledAt: crawledAt,
+          crawledAt,
         };
       });
     });
@@ -348,7 +347,7 @@ async function scrapeChooseYourDisc(query: string) {
           vendor: product.vendor,
           flightNumbers,
           stockStatus: product.available ? 'available' : 'unavailable',
-          crawledAt: crawledAt,
+          crawledAt,
         };
       });
     });
@@ -383,7 +382,7 @@ async function scrapeDiscWolf(query: string) {
           flightNumbers,
           vendor: product.vendor,
           stockStatus: product.available ? 'available' : 'unavailable',
-          crawledAt: crawledAt,
+          crawledAt,
         };
       });
     });
@@ -428,16 +427,16 @@ async function scrapeBirdieShop(query: string) {
           : {};
         return {
           title: $(el).find('.sqs-title').text()?.trim(),
-          price: price,
+          price,
           image: `${image}?format=500w`,
           store: 'birdieshop',
           url: cleanURL(url),
           flightNumbers,
           stockStatus,
-          crawledAt: crawledAt,
+          crawledAt,
         } as DefaultProduct;
       } catch (err) {
-        console.log('Error fetching product page', err);
+        console.error('Error fetching product page', err);
         return null;
       }
     }),
@@ -484,17 +483,17 @@ async function scrapeDiscgolf4You(query: string) {
         };
         products.push({
           title: $nextPage(el).find('.woocommerce-loop-product__title').text(),
-          price: price,
+          price,
           image: $nextPage(el).find('img').attr('data-src'),
           store: 'discgolf4you',
           url: cleanURL($nextPage(el).find('a').attr('href')),
           flightNumbers,
           stockStatus: 'unknown',
-          crawledAt: crawledAt,
+          crawledAt,
         });
       });
     } catch (err) {
-      console.log('Error fetching product page', err);
+      console.error('Error fetching product page', err);
     }
   }
 
@@ -537,17 +536,17 @@ async function scrapeHyzerStore(query: string) {
         };
         products.push({
           title: $nextPage(el).find('.woocommerce-loop-product__title').text(),
-          price: price,
+          price,
           image: $nextPage(el).find('img').attr('src'),
           store: 'hyzerstore',
           url: cleanURL($nextPage(el).find('a').attr('href')),
           flightNumbers,
           stockStatus: 'unknown',
-          crawledAt: crawledAt,
+          crawledAt,
         });
       });
     } catch (err) {
-      console.log('Error fetching product page', err);
+      console.error('Error fetching product page', err);
     }
   }
 
@@ -555,7 +554,7 @@ async function scrapeHyzerStore(query: string) {
 }
 
 export async function handleCache(type: string, query: string) {
-  if (process.env.NODE_ENV === 'production') {
+  if (env.NODE_ENV === 'production') {
     const cacheKey = `${type}-${query}`;
     const cachedData = await getCache(cacheKey);
     if (cachedData) return cachedData;
@@ -569,7 +568,7 @@ export async function handleCache(type: string, query: string) {
 function formatPrice(str: string | undefined): number | null {
   if (!str) return null;
   const dotNotation = str.trim().replace(',', '.');
-  const euro = parseFloat(dotNotation);
+  const euro = Number.parseFloat(dotNotation);
   return Math.round(euro * 100);
 }
 
