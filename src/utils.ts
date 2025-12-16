@@ -1,39 +1,27 @@
-import type { RelatedTournament, TournamentOutput } from './types';
+import dotenv from 'dotenv';
+import type { ZodObject, ZodRawShape } from 'zod';
+import { ZodError } from 'zod';
 
-export function removeDuplicates(tournaments: TournamentOutput[]): TournamentOutput[] {
-  const seen: Record<string, number> = {};
-  const relatedTournaments: Record<string, RelatedTournament[]> = {};
-
-  const result = tournaments
-    .filter((tournament) => {
-      if (!tournament.round || !tournament.event_id) return true;
-      const handle = `${tournament.title} - ${tournament.dates.startTournament}`;
-      if (seen[handle]) {
-        const data: RelatedTournament = {
-          id: tournament.event_id,
-          round: tournament.round.trim(),
-        };
-        const key = String(seen[handle]);
-        if (relatedTournaments[key]?.length) {
-          relatedTournaments[key].push(data);
-        } else {
-          relatedTournaments[key] = [data];
-        }
-        return false;
-      } else {
-        seen[handle] = tournament.event_id;
-        return true;
-      }
-    })
-    .map((tournament) => {
-      const key = String(tournament.event_id);
-      if (relatedTournaments[key]) {
-        tournament.relatedTournaments = relatedTournaments[key];
-      }
-      return tournament;
-    });
-
-  return result;
+dotenv.config();
+export default function tryParseEnv<T extends ZodRawShape>(
+  EnvSchema: ZodObject<T>,
+  buildEnv: Record<string, string | undefined> = process.env,
+) {
+  try {
+    EnvSchema.parse(buildEnv);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      let message = 'Missing required values in .env:\n';
+      error.issues.forEach((issue) => {
+        message += `${String(issue.path[0])}\n`;
+      });
+      const e = new Error(message);
+      e.stack = '';
+      throw e;
+    } else {
+      console.error(error);
+    }
+  }
 }
 
 export function getCell(element: cheerio.Cheerio, number?: false): string;

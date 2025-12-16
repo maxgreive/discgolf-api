@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { getCell } from './utils';
+import { getCell } from '../utils';
 
 const BASE_URL = 'https://scores.frisbeesportverband.de/';
 const endpoint = new URL(BASE_URL);

@@ -1,10 +1,14 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 import type { NextFunction, Request, Response } from 'express';
-import { getCache, setCache } from './cache';
-import env from './env';
-import type { MetrixTournament, OfficialTournament, TournamentOutput } from './types.js';
-import { removeDuplicates } from './utils';
+import { getCache, setCache } from '../cache';
+import env from '../env';
+import type {
+  MetrixTournament,
+  OfficialTournament,
+  RelatedTournament,
+  TournamentOutput,
+} from '../types.js';
 
 dotenv.config();
 
@@ -105,4 +109,40 @@ export async function fetchOfficial(): Promise<string> {
       }),
     );
   return JSON.stringify(tournamentsArray);
+}
+
+function removeDuplicates(tournaments: TournamentOutput[]): TournamentOutput[] {
+  const seen: Record<string, number> = {};
+  const relatedTournaments: Record<string, RelatedTournament[]> = {};
+
+  const result = tournaments
+    .filter((tournament) => {
+      if (!tournament.round || !tournament.event_id) return true;
+      const handle = `${tournament.title} - ${tournament.dates.startTournament}`;
+      if (seen[handle]) {
+        const data: RelatedTournament = {
+          id: tournament.event_id,
+          round: tournament.round.trim(),
+        };
+        const key = String(seen[handle]);
+        if (relatedTournaments[key]?.length) {
+          relatedTournaments[key].push(data);
+        } else {
+          relatedTournaments[key] = [data];
+        }
+        return false;
+      } else {
+        seen[handle] = tournament.event_id;
+        return true;
+      }
+    })
+    .map((tournament) => {
+      const key = String(tournament.event_id);
+      if (relatedTournaments[key]) {
+        tournament.relatedTournaments = relatedTournaments[key];
+      }
+      return tournament;
+    });
+
+  return result;
 }

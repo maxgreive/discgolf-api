@@ -36,3 +36,24 @@ export async function setCache<T>(
     // Swallow errors like Memcached version
   }
 }
+
+let redisAvailable = false;
+
+redis.on('connect', () => {
+  redisAvailable = true;
+  console.log('✅ Redis connected');
+});
+
+redis.on('error', (err) => {
+  redisAvailable = false;
+  console.warn('⚠️ Redis unavailable:', err.message);
+});
+
+redis.on('end', () => {
+  redisAvailable = false;
+  console.warn('⚠️ Redis connection closed');
+});
+
+export function redisStatus() {
+  return redisAvailable;
+}

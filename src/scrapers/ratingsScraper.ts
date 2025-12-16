@@ -1,10 +1,10 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import dotenv from 'dotenv';
-import { getCache, setCache } from './cache';
-import env from './env';
-import type { Rating } from './types';
-import { getCell } from './utils';
+import { getCache, setCache } from '../cache';
+import env from '../env';
+import type { Rating } from '../types';
+import { getCell } from '../utils';
 
 dotenv.config();
 

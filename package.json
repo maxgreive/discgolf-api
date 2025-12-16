@@ -1,9 +1,9 @@
 {
-  "name": "dg-turniere-scraper",
+  "name": "discgolf-api",
   "type": "module",
   "version": "1.0.0",
   "description": "",
-  "author": "",
+  "author": "Max Greive",
   "license": "ISC",
   "keywords": [],
   "engines": {
