@@ -38,27 +38,25 @@ async function getMetrixTournaments() {
   return { metrixTournaments };
 }
 
-export async function scrapeMetrix(): Promise<string> {
+export async function scrapeMetrix(): Promise<TournamentOutput[]> {
   const { metrixTournaments } = await getMetrixTournaments();
 
-  return JSON.stringify(
-    removeDuplicates(
-      metrixTournaments.map(
-        (tournament: MetrixTournament): TournamentOutput => ({
-          title: tournament[1].split(' &rarr;')[0],
-          round: tournament[1].split(' &rarr;')[tournament[1].split(' &rarr;').length - 1],
-          event_id: Number(tournament[0]),
-          link: `https://discgolfmetrix.com/${tournament[0]}`,
-          location: tournament[7].split(' &rarr;')[0],
-          coords: {
-            lat: tournament[2],
-            lng: tournament[3],
-          },
-          dates: {
-            startTournament: tournament[4].toString(),
-          },
-        }),
-      ),
+  return removeDuplicates(
+    metrixTournaments.map(
+      (tournament: MetrixTournament): TournamentOutput => ({
+        title: tournament[1].split(' &rarr;')[0],
+        round: tournament[1].split(' &rarr;')[tournament[1].split(' &rarr;').length - 1],
+        event_id: Number(tournament[0]),
+        link: `https://discgolfmetrix.com/${tournament[0]}`,
+        location: tournament[7].split(' &rarr;')[0],
+        coords: {
+          lat: tournament[2],
+          lng: tournament[3],
+        },
+        dates: {
+          startTournament: tournament[4].toString(),
+        },
+      }),
     ),
   );
 }
@@ -72,10 +70,10 @@ async function getOfficialTournaments() {
   return { officialTournaments };
 }
 
-export async function fetchOfficial(): Promise<string> {
+export async function fetchOfficial(): Promise<TournamentOutput[]> {
   const { officialTournaments } = await getOfficialTournaments();
 
-  const tournamentsArray = officialTournaments
+  return officialTournaments
     .filter((tournament) => tournament.location_latitude && tournament.location_longitude)
     .map(
       (tournament: OfficialTournament): TournamentOutput => ({
@@ -103,7 +101,6 @@ export async function fetchOfficial(): Promise<string> {
         },
       }),
     );
-  return JSON.stringify(tournamentsArray);
 }
 
 function removeDuplicates(tournaments: TournamentOutput[]): TournamentOutput[] {
