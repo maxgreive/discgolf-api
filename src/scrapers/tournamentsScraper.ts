@@ -1,8 +1,8 @@
-import axios from 'axios';
 import dotenv from 'dotenv';
 import type { NextFunction, Request, Response } from 'express';
 import { getCache, setCache } from '../cache';
 import env from '../env';
+import { getJson } from '../http';
 import type {
   MetrixTournament,
   OfficialTournament,
@@ -37,8 +37,7 @@ async function handleCache<T>(type: string, callback: () => Promise<T>): Promise
 async function getMetrixTournaments() {
   const url = env.METRIX_URL;
   if (!url) throw new Error('METRIX_URL not configured');
-  const { data } = await axios.get<MetrixTournament[]>(url);
-  const metrixTournaments = data;
+  const metrixTournaments = await getJson<MetrixTournament[]>(url);
   return { metrixTournaments };
 }
 
@@ -72,8 +71,7 @@ async function getOfficialTournaments() {
     throw new Error('Official tournament environment variables not configured');
   }
   const url = `${env.OFFICIAL_URL}?p=api&key=tournaments-actual&token=${env.TOURNAMENTS_API_TOKEN}&secret=${env.TOURNAMENTS_API_SECRET}`;
-  const { data } = await axios.get<OfficialTournament[]>(url);
-  const officialTournaments = data;
+  const officialTournaments = await getJson<OfficialTournament[]>(url);
   return { officialTournaments };
 }
 

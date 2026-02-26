@@ -1,5 +1,5 @@
-import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { getText } from '../http';
 import { getCell } from '../utils';
 
 const BASE_URL = 'https://scores.frisbeesportverband.de/';
@@ -10,7 +10,7 @@ export async function scrapeScores(id: string) {
   endpoint.searchParams.set('series', id);
 
   try {
-    const html = await axios.get<string>(endpoint.toString()).then((response) => response.data);
+    const html = await getText(endpoint.toString());
     const $ = cheerio.load(html);
     const rows = $('.admintable.wide tr').toArray();
     const seriesTitle = $(`#seriesNav${id}`).text().trim();
@@ -52,7 +52,7 @@ export async function scrapeScores(id: string) {
 export async function scrapeUltiorganizer() {
   const data: { title: string; id: string }[] = [];
   try {
-    const html = await axios.get<string>(endpoint.toString()).then((response) => response.data);
+    const html = await getText(endpoint.toString());
     const $ = cheerio.load(html);
 
     const series = $('.menuserieslevel').toArray();

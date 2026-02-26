@@ -1,8 +1,8 @@
-import axios from 'axios';
 import * as cheerio from 'cheerio';
 import dotenv from 'dotenv';
 import { getCache, setCache } from '../cache';
 import env from '../env';
+import { getText } from '../http';
 import type { Rating } from '../types';
 import { getCell } from '../utils';
 
@@ -16,7 +16,7 @@ async function scrapeRatings() {
     return { message: 'RATING_URL not configured' };
   }
   try {
-    const html = await axios.get<string>(endpoint.toString()).then((response) => response.data);
+    const html = await getText(endpoint.toString());
     const $ = cheerio.load(html);
 
     const divisionCount = getDivisionCount($);

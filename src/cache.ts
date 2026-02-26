@@ -7,18 +7,20 @@ dotenv.config();
 // // Create Redis client from HEROKU REDIS_URL
 // If REDIS_URL is not set, defaults to localhost
 
-if (env.NODE_ENV === 'production' && !env.REDIS_URL) {
+const isProduction = env.NODE_ENV === 'production';
+if (isProduction && !env.REDIS_URL) {
   throw new Error('REDIS_URL not configured for production');
 }
 
 const redis =
-  env.NODE_ENV === 'production'
-    ? new Redis(env.REDIS_URL as string, { tls: { rejectUnauthorized: false } })
-    : new Redis(env.REDIS_URL || 'redis://localhost:6379');
+  isProduction || env.REDIS_URL
+    ? new Redis(env.REDIS_URL as string, isProduction ? { tls: { rejectUnauthorized: false } } : {})
+    : null;
 
 const DEFAULT_EXPIRY = Number(env.CACHE_EXPIRY) || 3600;
 
 export async function getCache<T>(key: string): Promise<T | null> {
+  if (!redis) return null;
   try {
     const val = await redis.get(key);
     if (!val) return null;
@@ -33,6 +35,7 @@ export async function setCache<T>(
   value: T,
   expiry: number = DEFAULT_EXPIRY,
 ): Promise<void> {
+  if (!redis) return;
   try {
     // 'EX' sets expiry in seconds
     await redis.set(key, JSON.stringify(value), 'EX', expiry);
@@ -42,21 +45,22 @@ export async function setCache<T>(
 }
 
 let redisAvailable = false;
+if (redis) {
+  redis.on('connect', () => {
+    redisAvailable = true;
+    console.log('✅ Redis connected');
+  });
 
-redis.on('connect', () => {
-  redisAvailable = true;
-  console.log('✅ Redis connected');
-});
+  redis.on('error', (err) => {
+    redisAvailable = false;
+    console.warn('⚠️ Redis unavailable:', err.message);
+  });
 
-redis.on('error', (err) => {
-  redisAvailable = false;
-  console.warn('⚠️ Redis unavailable:', err.message);
-});
-
-redis.on('end', () => {
-  redisAvailable = false;
-  console.warn('⚠️ Redis connection closed');
-});
+  redis.on('end', () => {
+    redisAvailable = false;
+    console.warn('⚠️ Redis connection closed');
+  });
+}
 
 export function redisStatus() {
   return redisAvailable;
