@@ -3,7 +3,7 @@ import env from '../env';
 
 const router = Router();
 
-router.get('/bagtag', async (_, res) => {
+router.get('/', async (_, res) => {
   if (!env.BAGTAG_ENDPOINT) {
     res.status(500).json({ message: 'BAGTAG_ENDPOINT not configured' });
     return;
