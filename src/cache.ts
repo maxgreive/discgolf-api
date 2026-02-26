@@ -7,9 +7,13 @@ dotenv.config();
 // // Create Redis client from HEROKU REDIS_URL
 // If REDIS_URL is not set, defaults to localhost
 
+if (env.NODE_ENV === 'production' && !env.REDIS_URL) {
+  throw new Error('REDIS_URL not configured for production');
+}
+
 const redis =
   env.NODE_ENV === 'production'
-    ? new Redis(env.REDIS_URL, { tls: { rejectUnauthorized: false } })
+    ? new Redis(env.REDIS_URL as string, { tls: { rejectUnauthorized: false } })
     : new Redis(env.REDIS_URL || 'redis://localhost:6379');
 
 const DEFAULT_EXPIRY = Number(env.CACHE_EXPIRY) || 3600;

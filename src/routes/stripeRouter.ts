@@ -12,7 +12,10 @@ const stripe = new Stripe(env.STRIPE_SECRET_KEY as string, {
 
 router.post('/', express.raw({ type: 'application/json' }), (request, response) => {
   const sig = request.headers['stripe-signature'];
-  if (!sig || !endpointSecret) return;
+  if (!sig || !endpointSecret) {
+    response.status(400).end();
+    return;
+  }
 
   let event: Stripe.Event;
 
