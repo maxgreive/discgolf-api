@@ -6,6 +6,27 @@ import shops from '../shopList';
 
 const crawledAt = new Date().toISOString();
 const NEW_PRODUCT_DAYS = Number(env.NEW_PRODUCT_DAYS || '14');
+const MAX_CONCURRENCY = 4;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  task: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  let index = 0;
+
+  async function worker() {
+    while (index < items.length) {
+      const current = index++;
+      results[current] = await task(items[current], current);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
 
 interface ShopifyProduct {
   title: string;
@@ -38,6 +59,31 @@ interface DefaultProduct {
   stockStatus: 'available' | 'unavailable' | 'unknown';
   crawledAt: string;
   createdAt?: string;
+}
+
+interface JsonLdProduct {
+  name?: string;
+  image?: string | string[];
+  offers?: {
+    lowPrice?: number;
+    highPrice?: number;
+    priceCurrency?: string;
+    availability?: string;
+  };
+}
+
+function parseJsonLdProduct(html: string): JsonLdProduct | null {
+  const regex = /<script type="application\/ld\+json">(.*?)<\/script>/gs;
+  for (const match of html.matchAll(regex)) {
+    if (!match[1]) continue;
+    try {
+      const data = JSON.parse(match[1]) as JsonLdProduct;
+      if (data?.offers || data?.name) return data;
+    } catch {
+      // ignore malformed blocks
+    }
+  }
+  return null;
 }
 
 async function scrapeStores(type: string, query: string) {
@@ -110,8 +156,7 @@ async function getShopifyProductFeeds() {
     }
   }
   return allProducts.sort(
-    (a, b) =>
-      new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(),
+    (a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(),
   );
 }
 
@@ -382,30 +427,34 @@ async function scrapeDiscWolf(query: string) {
 }
 
 async function scrapeBirdieShop(query: string) {
-  const shop = shops.find((s) => s.title === 'birdieShop');
+  const shop = shops.find((s) => s.title === 'birdieshop');
   if (!shop) return null;
   const url = shop.url.replace('{{query}}', query);
   const html = await getText(url);
   const $ = cheerio.load(html);
   const productItems = Array.from($('.search-result'));
   if (productItems.length === 0) return [];
-  const products = (await Promise.all(
-    productItems.map(async (el): Promise<DefaultProduct | null> => {
+  const products = (await mapWithConcurrency(
+    productItems,
+    MAX_CONCURRENCY,
+    async (el): Promise<DefaultProduct | null> => {
       const url = `https://www.birdie-shop.com${$(el).attr('data-url')}`;
       if (!url.includes('/p/')) return null;
       try {
         const productHtml = await getText(url);
         const $product = cheerio.load(productHtml);
-        $product('.original-price').remove();
-        const price = Number(
-          [...$product('.product-price').text().trim()]
-            .filter((char) => Number(char) > -1)
-            .join(''),
-        );
+        const jsonLd = parseJsonLdProduct(productHtml);
+        const price = jsonLd?.offers?.lowPrice
+          ? Math.round(jsonLd.offers.lowPrice * 100)
+          : Number(
+              [...$product('.product-price').text().trim()]
+                .filter((char) => Number(char) > -1)
+                .join(''),
+            );
         const image = $product('.product-gallery-slides-item-image')?.first()?.attr('data-src');
-        const stockStatus = $product('.product-status .sold-out').length
-          ? 'unavailable'
-          : 'unknown';
+        const isInStock = jsonLd?.offers?.availability?.includes('InStock');
+        const isOutOfStock = jsonLd?.offers?.availability?.includes('OutOfStock');
+        const stockStatus = isInStock ? 'available' : isOutOfStock ? 'unavailable' : 'unknown';
         const list = $product('.product-details ul').text();
         const flightRegex = /Speed: (-?\d+)Glide: (-?\d+)Turn: (-?\d+)Fade: (-?\d+)/;
         const flightMatch = list?.match(flightRegex);
@@ -416,11 +465,20 @@ async function scrapeBirdieShop(query: string) {
               turn: flightMatch[3],
               fade: flightMatch[4],
             }
-          : {};
+          : undefined;
+        const title =
+          $product('h1').first().text()?.trim() ||
+          jsonLd?.name?.split(' - ')[0]?.trim() ||
+          $(el).find('.sqs-title').text()?.trim();
+        const jsonImage = typeof jsonLd?.image === 'string' ? jsonLd.image : jsonLd?.image?.[0];
         return {
-          title: $(el).find('.sqs-title').text()?.trim(),
+          title,
           price,
-          image: `${image}?format=500w`,
+          image: image
+            ? `${image}?format=500w`
+            : jsonImage
+              ? `${jsonImage}?format=500w`
+              : undefined,
           store: 'birdieshop',
           url: cleanURL(url),
           flightNumbers,
@@ -431,7 +489,7 @@ async function scrapeBirdieShop(query: string) {
         console.error('Error fetching product page', err);
         return null;
       }
-    }),
+    },
   )) as DefaultProduct[];
   return filterProducts(products.filter(Boolean), query);
 }
@@ -450,13 +508,14 @@ async function scrapeDiscgolf4You(query: string) {
     ) || 1;
   const products: DefaultProduct[] = [];
 
-  for (let i = 1; i <= pagesLength; i++) {
+  const pageIndices = Array.from({ length: pagesLength }, (_, i) => i + 1);
+  const pageResults = await mapWithConcurrency(pageIndices, MAX_CONCURRENCY, async (i) => {
     const nextPageUrl = shop.url.replace('{{query}}', query).replace('{{page}}', i.toString());
     try {
       const nextPageHtml = await getText(nextPageUrl);
       const $nextPage = cheerio.load(nextPageHtml);
       const productItems = Array.from($nextPage('.product'));
-      productItems.forEach(async (el) => {
+      return productItems.map((el) => {
         const price = Number(
           [
             ...$nextPage(el)
@@ -473,7 +532,7 @@ async function scrapeDiscgolf4You(query: string) {
           turn: $nextPage(el).find('.flight-attribute-turn b').text() || null,
           fade: $nextPage(el).find('.flight-attribute-fade b').text() || null,
         };
-        products.push({
+        return {
           title: $nextPage(el).find('.woocommerce-loop-product__title').text(),
           price,
           image: $nextPage(el).find('img').attr('data-src'),
@@ -482,12 +541,14 @@ async function scrapeDiscgolf4You(query: string) {
           flightNumbers,
           stockStatus: 'unknown',
           crawledAt,
-        });
+        } as DefaultProduct;
       });
     } catch (err) {
       console.error('Error fetching product page', err);
+      return [];
     }
-  }
+  });
+  products.push(...pageResults.flat());
 
   return filterProducts(products, query);
 }
@@ -506,14 +567,14 @@ async function scrapeHyzerStore(query: string) {
     ) || 1;
   const products: DefaultProduct[] = [];
 
-  for (let i = 1; i <= pagesLength; i++) {
+  const pageIndices = Array.from({ length: pagesLength }, (_, i) => i + 1);
+  const pageResults = await mapWithConcurrency(pageIndices, MAX_CONCURRENCY, async (i) => {
     const nextPageUrl = shop.url.replace('{{query}}', query).replace('{{page}}', i.toString());
     try {
-      const nextPageHtml =
-        i === 1 ? html : await getText(nextPageUrl);
+      const nextPageHtml = i === 1 ? html : await getText(nextPageUrl);
       const $nextPage = cheerio.load(nextPageHtml);
       const productItems = Array.from($nextPage('.product'));
-      productItems.forEach(async (el) => {
+      return productItems.map((el) => {
         $nextPage(el).find('.price del bdi').remove();
         const price = Number(
           [...$nextPage(el).find('.price span bdi').text().trim()]
@@ -526,7 +587,7 @@ async function scrapeHyzerStore(query: string) {
           turn: $nextPage(el).find('.btn-turn').text() || null,
           fade: $nextPage(el).find('.btn-fade').text() || null,
         };
-        products.push({
+        return {
           title: $nextPage(el).find('.woocommerce-loop-product__title').text(),
           price,
           image: $nextPage(el).find('img').attr('src'),
@@ -535,12 +596,14 @@ async function scrapeHyzerStore(query: string) {
           flightNumbers,
           stockStatus: 'unknown',
           crawledAt,
-        });
+        } as DefaultProduct;
       });
     } catch (err) {
       console.error('Error fetching product page', err);
+      return [];
     }
-  }
+  });
+  products.push(...pageResults.flat());
 
   return filterProducts(products, query);
 }
