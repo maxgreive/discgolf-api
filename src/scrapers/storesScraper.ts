@@ -1,11 +1,8 @@
 import * as cheerio from 'cheerio';
-import dotenv from 'dotenv';
 import { getCache, setCache } from '../cache';
 import env from '../env';
 import { getJson, getText } from '../http';
 import shops from '../shopList';
-
-dotenv.config();
 
 const crawledAt = new Date().toISOString();
 const NEW_PRODUCT_DAYS = Number(env.NEW_PRODUCT_DAYS || '14');

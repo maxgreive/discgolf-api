@@ -1,8 +1,5 @@
-import dotenv from 'dotenv';
 import Redis from 'ioredis';
 import env from './env';
-
-dotenv.config();
 
 // // Create Redis client from HEROKU REDIS_URL
 // If REDIS_URL is not set, defaults to localhost

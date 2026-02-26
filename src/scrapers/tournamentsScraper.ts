@@ -1,4 +1,3 @@
-import dotenv from 'dotenv';
 import type { NextFunction, Request, Response } from 'express';
 import { getCache, setCache } from '../cache';
 import env from '../env';
@@ -9,8 +8,6 @@ import type {
   RelatedTournament,
   TournamentOutput,
 } from '../types.js';
-
-dotenv.config();
 
 const isProduction = env.NODE_ENV === 'production';
 

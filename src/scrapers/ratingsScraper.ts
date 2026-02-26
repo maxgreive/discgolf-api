@@ -1,12 +1,9 @@
 import * as cheerio from 'cheerio';
-import dotenv from 'dotenv';
 import { getCache, setCache } from '../cache';
 import env from '../env';
 import { getText } from '../http';
 import type { Rating } from '../types';
 import { getCell } from '../utils';
-
-dotenv.config();
 
 const endpoint = env.RATING_URL ? new URL(env.RATING_URL) : null;
 

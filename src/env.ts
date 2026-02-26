@@ -1,5 +1,8 @@
+import dotenv from 'dotenv';
 import { z } from 'zod';
 import tryParseEnv from './utils';
+
+dotenv.config();
 
 const EnvSchema = z.object({
   NODE_ENV: z.string(),

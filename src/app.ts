@@ -1,5 +1,4 @@
 import cors from 'cors';
-import dotenv from 'dotenv';
 import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
 import env from './env';
@@ -10,8 +9,6 @@ import ratingsRouter from './routes/ratingsRouter';
 import scoresRouter from './routes/scoresRouter';
 import stripeRouter from './routes/stripeRouter';
 import tournamentsRouter from './routes/tournamentsRouter';
-
-dotenv.config();
 
 const app = express();
 
