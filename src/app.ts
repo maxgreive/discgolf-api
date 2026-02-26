@@ -37,11 +37,6 @@ if (env.NODE_ENV === 'production') {
   app.use(cors({ origin: true }));
 }
 
-app.use((err: Error, _: Request, res: Response, __: NextFunction) => {
-  console.error(err.stack);
-  res.status(500).send({ message: err.message });
-});
-
 app.use('/', indexRouter);
 app.use('/tournaments', tournamentsRouter);
 app.use('/bagtag', bagtagRouter);
@@ -49,5 +44,10 @@ app.use('/ratings', ratingsRouter);
 app.use('/scores', scoresRouter);
 app.use('/products', productsRouter);
 app.use('/stripe-webhook', stripeRouter);
+
+app.use((err: Error, _: Request, res: Response, __: NextFunction) => {
+  console.error(err.stack);
+  res.status(500).send({ message: err.message });
+});
 
 export default app;
