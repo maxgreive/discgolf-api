@@ -535,7 +535,7 @@ async function scrapeDiscgolf4You(query: string) {
         return {
           title: $nextPage(el).find('.woocommerce-loop-product__title').text(),
           price,
-          image: $nextPage(el).find('img').attr('data-src'),
+          image: $nextPage(el).find('img').attr('src'),
           store: 'discgolf4you',
           url: cleanURL($nextPage(el).find('a').attr('href')),
           flightNumbers,
