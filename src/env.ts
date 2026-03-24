@@ -19,6 +19,7 @@ const EnvSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string(),
   TOURNAMENTS_API_SECRET: z.string(),
   TOURNAMENTS_API_TOKEN: z.string(),
+  ALLOWED_ORIGIN_SUFFIX: z.string().optional(),
   OPENROUTESERVICE_API_URL: z.string().optional(),
   PORT: z.string().optional(),
   NEW_PRODUCT_DAYS: z.string().optional(),

@@ -14,6 +14,33 @@ const app = express();
 
 if (env.NODE_ENV === 'production') {
   const allowedOrigins = (env.ALLOWED_ORIGIN ?? '').split(',').map((o) => o.trim());
+  const allowedOriginSuffixes = (env.ALLOWED_ORIGIN_SUFFIX ?? '').split(',').map((o) => o.trim().toLowerCase());
+  const isAllowedOrigin = (origin: string) =>
+    allowedOrigins.some((allowedOrigin) => allowedOrigin && allowedOrigin === origin) ||
+    (() => {
+      try {
+        const url = new URL(origin);
+        const hostname = url.hostname.toLowerCase();
+
+        if (url.protocol !== 'https:') {
+          return false;
+        }
+
+        return allowedOriginSuffixes.some((allowedSuffix) => {
+          if (!allowedSuffix) return false;
+
+          const normalizedSuffix = allowedSuffix.startsWith('.') ? allowedSuffix.slice(1) : allowedSuffix;
+          return (
+            hostname === normalizedSuffix ||
+            hostname.endsWith(`.${normalizedSuffix}`) ||
+            hostname.endsWith(`--${normalizedSuffix}`)
+          );
+        });
+      } catch {
+        return false;
+      }
+    })();
+
   app.use(
     cors({
       origin: (origin, callback) => {
@@ -21,12 +48,14 @@ if (env.NODE_ENV === 'production') {
         // (curl, mobile apps, server-to-server)
         if (!origin) return callback(null, true);
 
-        if (allowedOrigins.includes(origin)) {
+        if (isAllowedOrigin(origin)) {
           return callback(null, true);
         }
 
         console.warn(`Blocked CORS request from origin: ${origin}`);
-        return callback(new Error(`CORS policy: origin ${origin} not allowed`));
+        const error = new Error(`CORS policy: origin ${origin} not allowed`) as Error & { status?: number };
+        error.status = 403;
+        return callback(error);
       },
     }),
   );
@@ -42,9 +71,9 @@ app.use('/scores', scoresRouter);
 app.use('/products', productsRouter);
 app.use('/stripe-webhook', stripeRouter);
 
-app.use((err: Error, _: Request, res: Response, __: NextFunction) => {
+app.use((err: Error & { status?: number }, _: Request, res: Response, __: NextFunction) => {
   console.error(err.stack);
-  res.status(500).send({ message: err.message });
+  res.status(err.status ?? 500).send({ message: err.message });
 });
 
 export default app;
