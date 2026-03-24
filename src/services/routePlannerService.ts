@@ -1,5 +1,6 @@
 import env from '../env.js';
 import { http } from '../http.js';
+import { formatBahnTravelDate } from '../utils.js';
 import { type ResolvedStation, resolveNearestStationMatch } from './locationService.js';
 
 const OPENROUTESERVICE_API_URL = env.OPENROUTESERVICE_API_URL ?? 'https://api.openrouteservice.org';
@@ -341,52 +342,12 @@ function buildBahnUrl(
     params.set('zot', destination.type);
   }
 
-  const formattedTravelDate = formatBahnDate(date);
+  const formattedTravelDate = formatBahnTravelDate(date);
   if (formattedTravelDate) {
     params.set('hd', formattedTravelDate);
   }
 
   return `https://www.bahn.de/buchung/fahrplan/suche#${params.toString()}`;
-}
-
-function formatBahnDate(date?: string): string | null {
-  const trimmedDate = date?.trim();
-  if (!trimmedDate) {
-    return null;
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
-    const dateOnlyValue = `${trimmedDate}T12:00:00`;
-    return isWithinNextSixMonths(new Date(dateOnlyValue)) ? dateOnlyValue : null;
-  }
-
-  const parsedDate = new Date(trimmedDate);
-  if (Number.isNaN(parsedDate.getTime()) || !isWithinNextSixMonths(parsedDate)) {
-    return null;
-  }
-
-  return [
-    parsedDate.getFullYear(),
-    padDatePart(parsedDate.getMonth() + 1),
-    padDatePart(parsedDate.getDate()),
-  ]
-    .join('-')
-    .concat(
-      `T${padDatePart(parsedDate.getHours())}:${padDatePart(parsedDate.getMinutes())}:${padDatePart(parsedDate.getSeconds())}`,
-    );
-}
-
-function padDatePart(value: number): string {
-  return value.toString().padStart(2, '0');
-}
-
-function isWithinNextSixMonths(date: Date): boolean {
-  const today = new Date();
-  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const sixMonthsAhead = new Date(startOfToday);
-  sixMonthsAhead.setMonth(sixMonthsAhead.getMonth() + 6);
-
-  return date >= startOfToday && date < sixMonthsAhead;
 }
 
 function buildFeatureTokens(properties: NonNullable<GeocodeFeature['properties']>): Set<string> {
