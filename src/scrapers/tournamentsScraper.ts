@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { getCache, setCache } from '../cache';
 import env from '../env';
 import { getJson } from '../http';
+import { normalizeTournamentLocations } from '../services/locationService.js';
 import type {
   MetrixTournament,
   OfficialTournament,
@@ -41,7 +42,7 @@ async function getMetrixTournaments() {
 export async function scrapeMetrix(): Promise<TournamentOutput[]> {
   const { metrixTournaments } = await getMetrixTournaments();
 
-  return removeDuplicates(
+  const tournaments = removeDuplicates(
     metrixTournaments.map(
       (tournament: MetrixTournament): TournamentOutput => ({
         title: tournament[1].split(' &rarr;')[0],
@@ -59,6 +60,8 @@ export async function scrapeMetrix(): Promise<TournamentOutput[]> {
       }),
     ),
   );
+
+  return normalizeTournamentLocations(tournaments);
 }
 
 async function getOfficialTournaments() {
@@ -73,7 +76,7 @@ async function getOfficialTournaments() {
 export async function fetchOfficial(): Promise<TournamentOutput[]> {
   const { officialTournaments } = await getOfficialTournaments();
 
-  return officialTournaments
+  const tournaments = officialTournaments
     .filter((tournament) => tournament.location_latitude && tournament.location_longitude)
     .map(
       (tournament: OfficialTournament): TournamentOutput => ({
@@ -101,6 +104,8 @@ export async function fetchOfficial(): Promise<TournamentOutput[]> {
         },
       }),
     );
+
+  return normalizeTournamentLocations(tournaments);
 }
 
 function removeDuplicates(tournaments: TournamentOutput[]): TournamentOutput[] {

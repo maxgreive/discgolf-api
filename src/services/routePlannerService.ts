@@ -128,8 +128,12 @@ async function geocodeOrigin(origin: string, destination: ResolvedPoint): Promis
         'boundary.country': 'DE',
         'focus.point.lat': destination.lat,
         'focus.point.lon': destination.lng,
+        lang: 'de',
         text: origin,
         size: 1,
+      },
+      headers: {
+        'Accept-Language': 'de',
       },
     });
 
