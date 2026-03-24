@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 type AxiosRequestConfig = Parameters<typeof axios.request>[0];
+type AxiosRequestOptions = Omit<AxiosRequestConfig, 'method' | 'url'>;
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_RETRIES = 2;
@@ -32,8 +33,8 @@ async function requestWithRetry<T>(
 
   while (attempt <= retries) {
     try {
-      const response = await http.request<T>(config as any);
-      return response.data;
+      const response = await http.request(config);
+      return response.data as T;
     } catch (error) {
       lastError = error;
       if (!shouldRetry(error) || attempt === retries) {
@@ -48,11 +49,11 @@ async function requestWithRetry<T>(
   throw lastError;
 }
 
-export async function getText(url: string, config?: AxiosRequestConfig): Promise<string> {
+export async function getText(url: string, config?: AxiosRequestOptions): Promise<string> {
   return requestWithRetry<string>({ url, method: 'GET', responseType: 'text', ...config });
 }
 
-export async function getJson<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+export async function getJson<T>(url: string, config?: AxiosRequestOptions): Promise<T> {
   return requestWithRetry<T>({ url, method: 'GET', responseType: 'json', ...config });
 }
 

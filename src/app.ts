@@ -14,7 +14,9 @@ const app = express();
 
 if (env.NODE_ENV === 'production') {
   const allowedOrigins = (env.ALLOWED_ORIGIN ?? '').split(',').map((o) => o.trim());
-  const allowedOriginSuffixes = (env.ALLOWED_ORIGIN_SUFFIX ?? '').split(',').map((o) => o.trim().toLowerCase());
+  const allowedOriginSuffixes = (env.ALLOWED_ORIGIN_SUFFIX ?? '')
+    .split(',')
+    .map((o) => o.trim().toLowerCase());
   const isAllowedOrigin = (origin: string) =>
     allowedOrigins.some((allowedOrigin) => allowedOrigin && allowedOrigin === origin) ||
     (() => {
@@ -29,7 +31,9 @@ if (env.NODE_ENV === 'production') {
         return allowedOriginSuffixes.some((allowedSuffix) => {
           if (!allowedSuffix) return false;
 
-          const normalizedSuffix = allowedSuffix.startsWith('.') ? allowedSuffix.slice(1) : allowedSuffix;
+          const normalizedSuffix = allowedSuffix.startsWith('.')
+            ? allowedSuffix.slice(1)
+            : allowedSuffix;
           return (
             hostname === normalizedSuffix ||
             hostname.endsWith(`.${normalizedSuffix}`) ||
@@ -53,7 +57,9 @@ if (env.NODE_ENV === 'production') {
         }
 
         console.warn(`Blocked CORS request from origin: ${origin}`);
-        const error = new Error(`CORS policy: origin ${origin} not allowed`) as Error & { status?: number };
+        const error = new Error(`CORS policy: origin ${origin} not allowed`) as Error & {
+          status?: number;
+        };
         error.status = 403;
         return callback(error);
       },
