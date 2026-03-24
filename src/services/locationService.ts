@@ -1,11 +1,15 @@
 import { getCache, setCache } from '../cache.js';
 import env from '../env.js';
-import { http } from '../http.js';
+import { getJson, http } from '../http.js';
 import type { TournamentOutput } from '../types.js';
 
 const OPENROUTESERVICE_API_URL = env.OPENROUTESERVICE_API_URL ?? 'https://api.openrouteservice.org';
+const BAHN_STATION_API_URL = env.BAHN_STATION_API_URL;
 const LOCATION_CACHE_PREFIX = 'location:normalized';
+const STATION_CACHE_PREFIX = 'location:station';
 const LOCATION_CACHE_EXPIRY_SECONDS = 60 * 60 * 24 * 30;
+const STATION_CACHE_EXPIRY_SECONDS = 60 * 60 * 24 * 30;
+const EMPTY_STATION_CACHE_VALUE = '__none__';
 
 interface ReverseGeocodeFeature {
   properties?: {
@@ -22,6 +26,19 @@ interface ReverseGeocodeFeature {
 
 interface ReverseGeocodeResponse {
   features?: ReverseGeocodeFeature[];
+}
+
+interface BahnStationResult {
+  id?: string;
+  name?: string;
+  products?: string[];
+  type?: string;
+}
+
+export interface ResolvedStation {
+  id?: string;
+  name: string;
+  type?: string;
 }
 
 export async function normalizeTournamentLocation(
@@ -67,27 +84,36 @@ export async function normalizeTournamentLocations(
   tournaments: TournamentOutput[],
 ): Promise<TournamentOutput[]> {
   const normalizedLocations = new Map<string, Promise<string>>();
+  const resolvedStations = new Map<string, Promise<string | undefined>>();
 
   return Promise.all(
     tournaments.map(async (tournament) => {
       const { lat, lng } = tournament.coords;
-      const cacheKey =
+      const locationKey =
         lat === null || lng === null ? tournament.location : `${lat.toFixed(5)},${lng.toFixed(5)}`;
 
-      if (!normalizedLocations.has(cacheKey)) {
+      if (!normalizedLocations.has(locationKey)) {
         normalizedLocations.set(
-          cacheKey,
+          locationKey,
           normalizeTournamentLocation(tournament.coords, tournament.location),
         );
       }
 
       const normalizedLocation =
-        normalizedLocations.get(cacheKey) ??
+        normalizedLocations.get(locationKey) ??
         normalizeTournamentLocation(tournament.coords, tournament.location);
+
+      const stationQuery = await normalizedLocation;
+      const stationKey = normalizeLocationToken(stationQuery);
+
+      if (stationKey && !resolvedStations.has(stationKey)) {
+        resolvedStations.set(stationKey, resolveNearestStation(stationQuery));
+      }
 
       return {
         ...tournament,
-        location: await normalizedLocation,
+        location: stationQuery,
+        station: stationKey ? await resolvedStations.get(stationKey) : undefined,
       };
     }),
   );
@@ -95,6 +121,48 @@ export async function normalizeTournamentLocations(
 
 function buildLocationCacheKey(lat: number, lng: number): string {
   return `${LOCATION_CACHE_PREFIX}:${lat.toFixed(5)},${lng.toFixed(5)}`;
+}
+
+function buildStationCacheKey(query: string): string {
+  return `${STATION_CACHE_PREFIX}:${normalizeLocationToken(query)}`;
+}
+
+export async function resolveNearestStation(query: string): Promise<string | undefined> {
+  const station = await resolveNearestStationMatch(query);
+  return station?.name;
+}
+
+export async function resolveNearestStationMatch(
+  query: string,
+): Promise<ResolvedStation | undefined> {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery || !BAHN_STATION_API_URL) {
+    return undefined;
+  }
+
+  const cacheKey = buildStationCacheKey(trimmedQuery);
+  const cachedStation = await getCache<ResolvedStation | typeof EMPTY_STATION_CACHE_VALUE>(
+    cacheKey,
+  );
+  if (cachedStation) {
+    return cachedStation === EMPTY_STATION_CACHE_VALUE ? undefined : cachedStation;
+  }
+
+  try {
+    const stations = await getJson<BahnStationResult[]>(BAHN_STATION_API_URL, {
+      params: {
+        suchbegriff: trimmedQuery,
+        typ: 'ALL',
+        limit: 10,
+      },
+    });
+
+    const station = selectPreferredStation(stations);
+    await setCache(cacheKey, station || EMPTY_STATION_CACHE_VALUE, STATION_CACHE_EXPIRY_SECONDS);
+    return station;
+  } catch {
+    return undefined;
+  }
 }
 
 function buildNormalizedLocation(properties?: ReverseGeocodeFeature['properties']): string | null {
@@ -125,6 +193,39 @@ function firstNonEmpty(...values: Array<string | undefined>): string | null {
   }
 
   return null;
+}
+
+function selectPreferredStation(
+  stations: BahnStationResult[] | undefined,
+): ResolvedStation | undefined {
+  if (!stations?.length) {
+    return undefined;
+  }
+
+  const stationStop = stations.find((station) => station.type === 'ST');
+  if (stationStop) {
+    return buildResolvedStation(stationStop);
+  }
+
+  const railStation = stations.find(hasRailProducts);
+  return buildResolvedStation(railStation) || buildResolvedStation(stations[0]);
+}
+
+function hasRailProducts(station: BahnStationResult): boolean {
+  return station.products?.some((product) => product !== 'BUS') ?? false;
+}
+
+function buildResolvedStation(station?: BahnStationResult): ResolvedStation | undefined {
+  const name = station?.name?.trim();
+  if (!name) {
+    return undefined;
+  }
+
+  return {
+    id: station?.id?.trim() || undefined,
+    name,
+    type: station?.type?.trim() || undefined,
+  };
 }
 
 function sameLocation(left: string, right: string): boolean {

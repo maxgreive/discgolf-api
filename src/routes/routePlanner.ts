@@ -9,6 +9,7 @@ import {
 
 const routeRequestSchema = z.object({
   origin: z.string().trim().min(3, 'Origin address is required'),
+  date: z.string().trim().min(1).optional(),
   destination: z.object({
     lat: z.number().min(-90).max(90),
     lng: z.number().min(-180).max(180),

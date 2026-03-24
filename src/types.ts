@@ -32,6 +32,7 @@ export interface TournamentOutput {
   title: string;
   link: string;
   location: string;
+  station?: string;
   coords: {
     lat: number | null;
     lng: number | null;

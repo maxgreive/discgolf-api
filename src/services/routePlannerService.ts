@@ -1,5 +1,6 @@
 import env from '../env.js';
 import { http } from '../http.js';
+import { type ResolvedStation, resolveNearestStationMatch } from './locationService.js';
 
 const OPENROUTESERVICE_API_URL = env.OPENROUTESERVICE_API_URL ?? 'https://api.openrouteservice.org';
 
@@ -54,6 +55,7 @@ interface AxiosLikeError {
 
 export interface RoutePlannerRequest {
   origin: string;
+  date?: string;
   destination: {
     lat: number;
     lng: number;
@@ -106,6 +108,10 @@ export async function getDrivingRoute(request: RoutePlannerRequest): Promise<Rou
   const destination = resolveDestinationPoint(request);
   const origin = await geocodeOrigin(request.origin, destination);
   const route = await fetchDrivingRoute(origin, destination);
+  const [originStation, resolvedDestinationStation] = await Promise.all([
+    resolveNearestStationMatch(origin.text),
+    resolveNearestStationMatch(destination.text),
+  ]);
 
   return {
     route,
@@ -114,7 +120,13 @@ export async function getDrivingRoute(request: RoutePlannerRequest): Promise<Rou
       destination,
     },
     train: {
-      url: buildBahnUrl(request.origin, request.destination),
+      url: buildBahnUrl(
+        originStation,
+        resolvedDestinationStation,
+        origin.text,
+        destination.text,
+        request.date,
+      ),
     },
   };
 }
@@ -307,14 +319,74 @@ function readUpstreamMessage(data: unknown): string | null {
   return null;
 }
 
-function buildBahnUrl(origin: string, destination: RoutePlannerRequest['destination']): string {
-  const destinationText = destination.station || destination.address || destination.name || '';
-  const params = new URLSearchParams({
-    so: origin,
-    zo: destinationText,
-  });
+function buildBahnUrl(
+  origin: ResolvedStation | undefined,
+  destination: ResolvedStation | undefined,
+  originText: string,
+  destinationText: string,
+  date?: string,
+): string {
+  const params = new URLSearchParams();
+
+  params.set('so', origin?.name || originText);
+  params.set('zo', destination?.name || destinationText);
+  params.set('soid', origin?.id || `O=${originText}`);
+  params.set('zoid', destination?.id || `O=${destinationText}`);
+
+  if (origin?.type) {
+    params.set('sot', origin.type);
+  }
+
+  if (destination?.type) {
+    params.set('zot', destination.type);
+  }
+
+  const formattedTravelDate = formatBahnDate(date);
+  if (formattedTravelDate) {
+    params.set('hd', formattedTravelDate);
+  }
 
   return `https://www.bahn.de/buchung/fahrplan/suche#${params.toString()}`;
+}
+
+function formatBahnDate(date?: string): string | null {
+  const trimmedDate = date?.trim();
+  if (!trimmedDate) {
+    return null;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
+    const dateOnlyValue = `${trimmedDate}T12:00:00`;
+    return isWithinNextSixMonths(new Date(dateOnlyValue)) ? dateOnlyValue : null;
+  }
+
+  const parsedDate = new Date(trimmedDate);
+  if (Number.isNaN(parsedDate.getTime()) || !isWithinNextSixMonths(parsedDate)) {
+    return null;
+  }
+
+  return [
+    parsedDate.getFullYear(),
+    padDatePart(parsedDate.getMonth() + 1),
+    padDatePart(parsedDate.getDate()),
+  ]
+    .join('-')
+    .concat(
+      `T${padDatePart(parsedDate.getHours())}:${padDatePart(parsedDate.getMinutes())}:${padDatePart(parsedDate.getSeconds())}`,
+    );
+}
+
+function padDatePart(value: number): string {
+  return value.toString().padStart(2, '0');
+}
+
+function isWithinNextSixMonths(date: Date): boolean {
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const sixMonthsAhead = new Date(startOfToday);
+  sixMonthsAhead.setMonth(sixMonthsAhead.getMonth() + 6);
+
+  return date >= startOfToday && date < sixMonthsAhead;
 }
 
 function buildFeatureTokens(properties: NonNullable<GeocodeFeature['properties']>): Set<string> {
