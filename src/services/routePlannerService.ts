@@ -9,11 +9,22 @@ interface GeocodeFeature {
   };
   properties?: {
     label?: string;
+    country_a?: string;
+    locality?: string;
+    localadmin?: string;
+    match_type?: string;
     name?: string;
+    postalcode?: string;
+    street?: string;
   };
 }
 
 interface GeocodeResponse {
+  geocoding?: {
+    query?: {
+      parsed_text?: Record<string, string>;
+    };
+  };
   features?: GeocodeFeature[];
 }
 
@@ -92,8 +103,8 @@ export class RoutePlannerError extends Error {
 }
 
 export async function getDrivingRoute(request: RoutePlannerRequest): Promise<RoutePlannerResponse> {
-  const origin = await geocodeOrigin(request.origin);
   const destination = resolveDestinationPoint(request);
+  const origin = await geocodeOrigin(request.origin, destination);
   const route = await fetchDrivingRoute(origin, destination);
 
   return {
@@ -108,12 +119,15 @@ export async function getDrivingRoute(request: RoutePlannerRequest): Promise<Rou
   };
 }
 
-async function geocodeOrigin(origin: string): Promise<ResolvedPoint> {
+async function geocodeOrigin(origin: string, destination: ResolvedPoint): Promise<ResolvedPoint> {
   try {
     const response = await http.get<GeocodeResponse>('/geocode/search', {
       baseURL: OPENROUTESERVICE_API_URL,
       params: {
         api_key: env.OPENROUTESERVICE_API_KEY,
+        'boundary.country': 'DE',
+        'focus.point.lat': destination.lat,
+        'focus.point.lon': destination.lng,
         text: origin,
         size: 1,
       },
@@ -124,6 +138,8 @@ async function geocodeOrigin(origin: string): Promise<ResolvedPoint> {
     if (!match?.geometry?.coordinates) {
       throw new RoutePlannerError(400, 'INVALID_ADDRESS', 'Origin address could not be resolved');
     }
+
+    assertValidOriginMatch(origin, response.data, match);
 
     return {
       text: match.properties?.label || match.properties?.name || origin,
@@ -236,6 +252,39 @@ function mapOpenRouteServiceError(
   return new RoutePlannerError(502, 'UPSTREAM_ERROR', 'Routing provider request failed');
 }
 
+function assertValidOriginMatch(
+  origin: string,
+  response: GeocodeResponse,
+  feature: GeocodeFeature,
+): void {
+  const properties = feature.properties;
+  if (!properties) {
+    throw new RoutePlannerError(400, 'INVALID_ADDRESS', 'Origin address could not be resolved');
+  }
+
+  if (properties.country_a && properties.country_a !== 'DEU') {
+    throw new RoutePlannerError(400, 'INVALID_ADDRESS', 'Origin address could not be resolved');
+  }
+
+  if (properties.match_type !== 'fallback') {
+    return;
+  }
+
+  const featureTokens = buildFeatureTokens(properties);
+  const originTokens = tokenize(origin);
+  const matchedOriginTokens = originTokens.filter((token) => featureTokens.has(token));
+  const locationTokens = buildExpectedLocationTokens(response.geocoding?.query?.parsed_text);
+  const matchedLocationTokens = locationTokens.filter((token) => featureTokens.has(token));
+
+  const isAcceptableFallback =
+    matchedLocationTokens.length > 0 ||
+    matchedOriginTokens.length >= Math.min(2, originTokens.length);
+
+  if (!isAcceptableFallback) {
+    throw new RoutePlannerError(400, 'INVALID_ADDRESS', 'Origin address could not be resolved');
+  }
+}
+
 function isAxiosLikeError(error: unknown): error is AxiosLikeError {
   return typeof error === 'object' && error !== null && ('response' in error || 'message' in error);
 }
@@ -262,4 +311,46 @@ function buildBahnUrl(origin: string, destination: RoutePlannerRequest['destinat
   });
 
   return `https://www.bahn.de/buchung/fahrplan/suche#${params.toString()}`;
+}
+
+function buildFeatureTokens(properties: NonNullable<GeocodeFeature['properties']>): Set<string> {
+  return new Set(
+    tokenize(
+      [
+        properties.label,
+        properties.name,
+        properties.street,
+        properties.locality,
+        properties.localadmin,
+        properties.postalcode,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    ),
+  );
+}
+
+function buildExpectedLocationTokens(parsedText?: Record<string, string>): string[] {
+  if (!parsedText) return [];
+
+  return tokenize([parsedText.city, parsedText.locality, parsedText.postalcode].join(' '));
+}
+
+function tokenize(value: string): string[] {
+  return normalizeText(value)
+    .split(/\s+/)
+    .filter((token) => token.length >= 3 || /^\d{4,}$/.test(token));
+}
+
+function normalizeText(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
