@@ -4,6 +4,7 @@ import { formatBahnTravelDate } from '../utils.js';
 import { type ResolvedStation, resolveNearestStationMatch } from './locationService.js';
 
 const OPENROUTESERVICE_API_URL = env.OPENROUTESERVICE_API_URL ?? 'https://api.openrouteservice.org';
+const BAHN_STATION_API_ENABLED = Boolean(env.BAHN_STATION_API_URL?.trim());
 
 interface GeocodeFeature {
   geometry: {
@@ -85,7 +86,7 @@ export interface RoutePlannerResponse {
     origin: ResolvedPoint;
     destination: ResolvedPoint;
   };
-  train: {
+  train?: {
     url: string;
   };
 }
@@ -120,15 +121,19 @@ export async function getDrivingRoute(request: RoutePlannerRequest): Promise<Rou
       origin,
       destination,
     },
-    train: {
-      url: buildBahnUrl(
-        originStation,
-        resolvedDestinationStation,
-        origin.text,
-        destination.text,
-        request.date,
-      ),
-    },
+    ...(BAHN_STATION_API_ENABLED
+      ? {
+          train: {
+            url: buildBahnUrl(
+              originStation,
+              resolvedDestinationStation,
+              origin.text,
+              destination.text,
+              request.date,
+            ),
+          },
+        }
+      : {}),
   };
 }
 
