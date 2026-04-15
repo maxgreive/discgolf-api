@@ -1,7 +1,9 @@
 import axios from 'axios';
 
-type AxiosRequestConfig = Parameters<typeof axios.request>[0];
-type AxiosRequestOptions = Omit<AxiosRequestConfig, 'method' | 'url'>;
+type AxiosRequestConfigWithSignal = Parameters<typeof axios.request>[0] & {
+  signal?: AbortSignal;
+};
+type AxiosRequestOptions = Omit<AxiosRequestConfigWithSignal, 'method' | 'url'>;
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_RETRIES = 2;
@@ -18,14 +20,34 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export function isAbortError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === 'AbortError' || (error as Error & { code?: string }).code === 'ERR_CANCELED')
+  );
+}
+
+export function throwIfAborted(signal?: AbortSignal) {
+  if (!signal?.aborted) return;
+
+  if (signal.reason instanceof Error) {
+    throw signal.reason;
+  }
+
+  const error = new Error('Request aborted');
+  error.name = 'AbortError';
+  throw error;
+}
+
 function shouldRetry(error: unknown): boolean {
+  if (isAbortError(error)) return false;
   const status = (error as { response?: { status?: number } })?.response?.status;
   if (!status) return true; // network error / timeout
   return status === 429 || status >= 500;
 }
 
 async function requestWithRetry<T>(
-  config: AxiosRequestConfig,
+  config: AxiosRequestConfigWithSignal,
   retries = DEFAULT_RETRIES,
 ): Promise<T> {
   let attempt = 0;
@@ -33,10 +55,14 @@ async function requestWithRetry<T>(
 
   while (attempt <= retries) {
     try {
+      throwIfAborted(config.signal);
       const response = await http.request(config);
       return response.data as T;
     } catch (error) {
       lastError = error;
+      if (isAbortError(error)) {
+        throw error;
+      }
       if (!shouldRetry(error) || attempt === retries) {
         throw error;
       }
