@@ -243,31 +243,61 @@ async function scrapeThrownatur(query: string, options: ScrapeOptions = {}) {
   const html = await getText(url, { signal });
   const $ = cheerio.load(html);
   const products: DefaultProduct[] = [];
-  $('.product-container').each((_, el) => {
-    const $price = $(el).find('.current-price-container').text()?.toLowerCase().trim();
-    const priceCleaned = $price.includes('nur') ? $price.split('nur')[1] : $price;
+  const productElements = $('.tnd-upl-item').length ? $('.tnd-upl-item') : $('.product-container');
+
+  productElements.each((_, el) => {
+    const title =
+      $(el).find('.tnd-upl-title-link').text()?.trim() || $(el).find('.product-url').text()?.trim();
+    const imageSrc =
+      $(el).find('.tnd-upl-img').attr('src') || $(el).find('.product-image img').attr('src');
+    const image = imageSrc
+      ? `https://thrownatur-discgolf.de/${imageSrc
+          .replace('thumbnail_images', 'info_images')
+          .trim()}`
+      : null;
+    const priceText =
+      $(el).find('.tnd-upl-price-current').text()?.toLowerCase().trim() ||
+      $(el).find('.current-price-container').text()?.toLowerCase().trim() ||
+      '';
+    const priceCleaned = priceText.includes('nur') ? priceText.split('nur')[1] : priceText;
     const price = Number([...priceCleaned].filter((char) => Number(char) > -1).join(''));
+    const shippingText = $(el).find('.tnd-upl-shipping-value').first().text()?.toLowerCase().trim();
     const stockStatusIcon = $(el).find('.shipping-info-short img').attr('src');
-    const stockStatus = stockStatusIcon?.includes('bestellbar')
-      ? 'available'
-      : stockStatusIcon?.includes('gray')
-        ? 'unknown'
-        : 'unavailable';
+    const stockStatus =
+      $(el).find('.ribbon-sold-out').length || shippingText?.includes('vergriffen')
+        ? 'unavailable'
+        : shippingText?.includes('arbeitstage') ||
+            stockStatusIcon?.includes('bestellbar') ||
+            shippingText?.includes('lieferzeit')
+          ? 'available'
+          : stockStatusIcon?.includes('gray')
+            ? 'unknown'
+            : 'unknown';
     products.push({
-      title: $(el).find('.product-url').text()?.trim(),
+      title,
       price,
-      image: `https://thrownatur-discgolf.de/${$(el)
-        .find('.product-image img')
-        .attr('src')
-        ?.replace('thumbnail_images', 'info_images')
-        .trim()}`,
+      image,
       store: 'thrownatur',
-      url: cleanURL($(el).find('a.product-url').attr('href')),
+      url: cleanURL(
+        $(el).find('a.tnd-upl-title-link').attr('href') || $(el).find('a.product-url').attr('href'),
+      ),
       flightNumbers: {
-        speed: $(el).find('.title-description .disc-guide-display-speed').text() || null,
-        glide: $(el).find('.title-description .disc-guide-display-glide').text() || null,
-        turn: $(el).find('.title-description .disc-guide-display-turn').text() || null,
-        fade: $(el).find('.title-description .disc-guide-display-fade').text() || null,
+        speed:
+          $(el).find('.tnd-upl-flight-speed').first().text() ||
+          $(el).find('.title-description .disc-guide-display-speed').text() ||
+          null,
+        glide:
+          $(el).find('.tnd-upl-flight-glide').first().text() ||
+          $(el).find('.title-description .disc-guide-display-glide').text() ||
+          null,
+        turn:
+          $(el).find('.tnd-upl-flight-turn').first().text() ||
+          $(el).find('.title-description .disc-guide-display-turn').text() ||
+          null,
+        fade:
+          $(el).find('.tnd-upl-flight-fade').first().text() ||
+          $(el).find('.title-description .disc-guide-display-fade').text() ||
+          null,
       },
       stockStatus,
       crawledAt,
