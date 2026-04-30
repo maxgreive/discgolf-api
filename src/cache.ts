@@ -9,10 +9,12 @@ if (isProduction && !env.REDIS_URL) {
   throw new Error('REDIS_URL not configured for production');
 }
 
-const redis =
-  isProduction || env.REDIS_URL
-    ? new Redis(env.REDIS_URL as string, isProduction ? { tls: { rejectUnauthorized: false } } : {})
-    : null;
+const redis = env.REDIS_URL
+  ? new Redis(
+      env.REDIS_URL as string,
+      env.REDIS_URL.startsWith('rediss://') ? { tls: { rejectUnauthorized: false } } : {},
+    )
+  : null;
 
 const DEFAULT_EXPIRY = Number(env.CACHE_EXPIRY) || 3600;
 
