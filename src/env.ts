@@ -25,6 +25,7 @@ const EnvSchema = z.object({
   PORT: z.string().optional(),
   NEW_PRODUCT_DAYS: z.string().optional(),
   REDIS_URL: z.string().optional(),
+  DATABASE_URL: z.url().optional(),
 });
 
 export type EnvSchema = z.infer<typeof EnvSchema>;
