@@ -26,6 +26,8 @@ const EnvSchema = z.object({
   NEW_PRODUCT_DAYS: z.string().optional(),
   REDIS_URL: z.string().optional(),
   DATABASE_URL: z.url().optional(),
+  SESSION_SECRET: z.string().min(32).optional(),
+  TRAINING_SIGNUP_PASSWORD: z.string().min(1).optional(),
 });
 
 export type EnvSchema = z.infer<typeof EnvSchema>;

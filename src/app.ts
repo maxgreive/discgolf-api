@@ -9,6 +9,7 @@ import ratingsRouter from './routes/ratingsRouter';
 import scoresRouter from './routes/scoresRouter';
 import stripeRouter from './routes/stripeRouter';
 import tournamentsRouter from './routes/tournamentsRouter';
+import trainingRouter from './routes/trainingRouter';
 
 const app = express();
 
@@ -76,6 +77,7 @@ app.use('/ratings', ratingsRouter);
 app.use('/scores', scoresRouter);
 app.use('/products', productsRouter);
 app.use('/stripe-webhook', stripeRouter);
+app.use('/training', trainingRouter);
 
 app.use((err: Error & { status?: number }, _: Request, res: Response, __: NextFunction) => {
   console.error(err.stack);
