@@ -93,7 +93,9 @@ export async function fetchOfficial(): Promise<TournamentOutput[]> {
           startTournament: tournament.timestamp_start
             ? new Date(tournament.timestamp_start * 1000)
             : null,
-          endTournament: tournament.timestamp_end ? new Date(tournament.timestamp_end * 1000) : null,
+          endTournament: tournament.timestamp_end
+            ? new Date(tournament.timestamp_end * 1000)
+            : null,
           startRegistration: tournament.timestamp_registration_phase
             ? new Date(tournament.timestamp_registration_phase * 1000)
             : null,
