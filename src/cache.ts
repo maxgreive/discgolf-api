@@ -18,6 +18,10 @@ const redis = env.REDIS_URL
 
 const DEFAULT_EXPIRY = Number(env.CACHE_EXPIRY) || 3600;
 
+/**
+ * Best-effort cache read: Redis failures intentionally degrade to a miss so
+ * scraper-backed endpoints remain available without a cache connection.
+ */
 export async function getCache<T>(key: string): Promise<T | null> {
   if (!redis) return null;
   try {
@@ -29,6 +33,7 @@ export async function getCache<T>(key: string): Promise<T | null> {
   }
 }
 
+/** Writes are best-effort for the same reason as reads; callers must not rely on persistence. */
 export async function setCache<T>(
   key: string,
   value: T,

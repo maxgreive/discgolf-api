@@ -1,5 +1,5 @@
 {
-  "name": "discgolf-api",
+  "name": "syndikat-api",
   "type": "module",
   "version": "1.0.0",
   "description": "",
@@ -14,7 +14,8 @@
     "build": "tsc && tsc-alias",
     "start": "node dist/server.js",
     "biome:check": "biome check .",
-    "biome:fix": "biome check . --write"
+    "biome:fix": "biome check . --write",
+    "openapi:lint": "redocly lint docs/openapi.yaml"
   },
   "dependencies": {
     "axios": "^1.7.2",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.8",
+    "@redocly/cli": "^2.46.1",
     "@types/axios": "^0.9.36",
     "@types/cheerio": "^0.22.35",
     "@types/cors": "^2.8.19",

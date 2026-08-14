@@ -40,6 +40,11 @@ function configured() {
   return databaseConfigured() && Boolean(env.SESSION_SECRET && env.TRAINING_SIGNUP_PASSWORD);
 }
 
+/**
+ * Friday cut-off is a local club rule, so it is calculated in Europe/Berlin
+ * rather than the server timezone. Signup reopens for the following Friday at
+ * 18:00 on Friday.
+ */
 function trainingStatus() {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Berlin',

@@ -106,6 +106,11 @@ export class RoutePlannerError extends Error {
   }
 }
 
+/**
+ * Resolves a German origin and returns a car route to the supplied tournament
+ * coordinates. Station enrichment is optional and must never prevent driving
+ * route results when the Bahn integration is disabled.
+ */
 export async function getDrivingRoute(request: RoutePlannerRequest): Promise<RoutePlannerResponse> {
   const destination = resolveDestinationPoint(request);
   const origin = await geocodeOrigin(request.origin, destination);

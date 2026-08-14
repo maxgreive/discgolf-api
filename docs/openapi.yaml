@@ -1,0 +1,573 @@
+openapi: 3.1.0
+info:
+  title: Syndikat Disc Golf API
+  version: 1.0.0
+  description: |
+    Website-facing API for syndikat.golf. This contract is maintained manually alongside Express routes.
+    Third-party scraper data can change independently; clients must tolerate omitted optional fields.
+servers:
+  - url: https://api.syndikat.golf
+    description: Production
+  - url: http://localhost:8080
+    description: Local development
+# All endpoints are public unless an operation overrides this with a security requirement.
+security: []
+tags:
+  - name: Health
+  - name: Community
+  - name: Tournaments
+  - name: Products
+  - name: Training
+paths:
+  /:
+    get:
+      tags: [Health]
+      summary: Return a basic service status
+      responses:
+        '200':
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicStatus'
+  /health:
+    get:
+      tags: [Health]
+      summary: Return service and Redis status
+      responses:
+        '200':
+          description: Health snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+  /bagtag:
+    get:
+      tags: [Community]
+      summary: Proxy the configured bag-tag ranking
+      responses:
+        '200':
+          description: Ranking data supplied by the configured bag-tag service
+          content:
+            application/json:
+              schema:
+                description: The upstream bag-tag service owns this payload shape.
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /ratings:
+    get:
+      tags: [Community]
+      summary: Return scraped player ratings
+      responses:
+        '200':
+          description: Ratings, or an upstream configuration/error message
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/Rating'
+                  - $ref: '#/components/schemas/Message'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /tournaments:
+    get:
+      tags: [Tournaments]
+      summary: Return official upcoming tournaments
+      responses:
+        '200':
+          description: Tournament list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tournament'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /tournaments/metrix:
+    get:
+      tags: [Tournaments]
+      summary: Return upcoming Disc Golf Metrix tournaments
+      responses:
+        '200':
+          description: Tournament list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tournament'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /tournaments/route:
+    post:
+      tags: [Tournaments]
+      summary: Plan a driving route to a tournament
+      description: The origin is geocoded in Germany. A Deutsche Bahn URL is included only when station lookup is configured.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+      responses:
+        '200':
+          description: Driving route and resolved locations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteResponse'
+        '400':
+          description: Invalid request or unresolvable origin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteError'
+        '404':
+          description: No driving route found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteError'
+        '502':
+          description: Routing provider error or quota exhaustion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RouteError'
+  /products/feed:
+    get:
+      tags: [Products]
+      summary: Return recent products from supported Shopify feeds
+      responses:
+        '200':
+          description: Products ordered newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /products/search-stream/{query}:
+    get:
+      tags: [Products]
+      summary: Search all supported stores as a server-sent event stream
+      description: |
+        The response uses `text/event-stream`. A `start` event is followed by zero or more
+        `store`/`store-error` events and one `end` event. The server sends comment heartbeats.
+        Closing the connection cancels outstanding store requests.
+      parameters:
+        - $ref: '#/components/parameters/ProductQuery'
+      responses:
+        '200':
+          description: Search event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              examples:
+                start:
+                  value: "event: start\ndata: {\"query\":\"Buzzz\",\"stores\":[\"discgolfstore\"]}\n\n"
+                store:
+                  value: "event: store\ndata: {\"store\":\"discgolfstore\",\"products\":[],\"count\":0}\n\n"
+      x-sse-events:
+        - event: start
+          schema:
+            $ref: '#/components/schemas/ProductSearchStart'
+        - event: store
+          schema:
+            $ref: '#/components/schemas/ProductSearchStore'
+        - event: store-error
+          schema:
+            $ref: '#/components/schemas/ProductSearchStoreError'
+        - event: end
+          schema:
+            $ref: '#/components/schemas/ProductSearchEnd'
+        - event: error
+          schema:
+            $ref: '#/components/schemas/Message'
+  /products/{type}/{query}:
+    get:
+      tags: [Products]
+      summary: Search a single supported store
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Store identifier. Unsupported identifiers return a text diagnostic.
+        - $ref: '#/components/parameters/ProductQuery'
+      responses:
+        '200':
+          description: Products, no result, or an unsupported-store diagnostic
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  - type: 'null'
+                  - type: string
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /training/status:
+    get:
+      tags: [Training]
+      summary: Return the next Friday training date and whether signup is open
+      responses:
+        '200':
+          description: Signup status, calculated in the Europe/Berlin timezone
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingStatus'
+        '503':
+          $ref: '#/components/responses/TrainingUnavailable'
+  /training/participants:
+    get:
+      tags: [Training]
+      summary: List participants for a training date
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Participants ordered by signup time
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [participants]
+                properties:
+                  participants:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrainingParticipant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '503':
+          $ref: '#/components/responses/TrainingUnavailable'
+    post:
+      tags: [Training]
+      summary: Sign up for the next Friday training
+      description: Requires the current signup password. Save the returned removal token locally; it is not retrievable later.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, password]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                password:
+                  type: string
+                  writeOnly: true
+      responses:
+        '201':
+          description: Participant created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [participant, removalToken]
+                properties:
+                  participant:
+                    $ref: '#/components/schemas/CreatedTrainingParticipant'
+                  removalToken:
+                    type: string
+                    description: Secret bearer token used only to remove this participant.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Incorrect signup password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '403':
+          description: Signup is closed after Friday 18:00 Europe/Berlin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '409':
+          description: The name is already signed up
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '503':
+          $ref: '#/components/responses/TrainingUnavailable'
+  /training/participants/{id}:
+    delete:
+      tags: [Training]
+      summary: Remove a participant
+      security:
+        - RemovalToken: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Participant removed
+        '401':
+          description: Missing, invalid, or non-matching removal token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '503':
+          $ref: '#/components/responses/TrainingUnavailable'
+components:
+  securitySchemes:
+    RemovalToken:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque removal token
+  parameters:
+    ProductQuery:
+      name: query
+      in: path
+      required: true
+      schema:
+        type: string
+      description: URL-encoded search terms.
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Message'
+    ServerError:
+      description: Server or upstream error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Message'
+    TrainingUnavailable:
+      description: Training signup has not been configured
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Message'
+  schemas:
+    BasicStatus:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, const: ok }
+    HealthStatus:
+      allOf:
+        - $ref: '#/components/schemas/BasicStatus'
+        - type: object
+          required: [redis, uptimeSeconds, timestamp]
+          properties:
+            redis: { type: string, enum: [up, down] }
+            uptimeSeconds: { type: integer, minimum: 0 }
+            timestamp: { type: string, format: date-time }
+    Message:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+    Rating:
+      type: object
+      required: [firstName, lastName, rating, ratingChange, divisionCount, gtNumber, division, lastRound, roundCount, dmRounds, rank, divisionRank, link, club]
+      properties:
+        firstName: { type: string }
+        lastName: { type: string }
+        rating: { type: number }
+        ratingChange: { type: [integer, 'null'], enum: [1, -1, null] }
+        divisionCount: { type: integer }
+        gtNumber: { type: integer }
+        division: { type: string }
+        lastRound: { type: string, format: date-time }
+        roundCount: { type: integer }
+        dmRounds: { type: integer }
+        rank: { type: integer }
+        divisionRank: { type: integer }
+        link: { type: string }
+        club: { type: string }
+    Tournament:
+      type: object
+      required: [title, link, location, coords, dates]
+      properties:
+        title: { type: string }
+        link: { type: string, format: uri }
+        location: { type: string }
+        station: { type: string }
+        coords:
+          type: object
+          required: [lat, lng]
+          properties:
+            lat: { type: [number, 'null'] }
+            lng: { type: [number, 'null'] }
+        badge: { type: string }
+        dates:
+          type: object
+          required: [startTournament]
+          properties:
+            startTournament: { type: [string, 'null'], format: date-time }
+            endTournament: { type: [string, 'null'], format: date-time }
+            startRegistration: { type: [string, 'null'], format: date-time }
+        spots:
+          type: object
+          required: [overall, used]
+          properties:
+            overall: { type: integer }
+            used: { type: integer }
+        round: { type: string }
+        event_id: { type: integer }
+        relatedTournaments:
+          type: array
+          items:
+            type: object
+            required: [id, round]
+            properties:
+              id: { type: integer }
+              round: { type: string }
+    RouteRequest:
+      type: object
+      required: [origin, destination]
+      properties:
+        origin: { type: string, minLength: 3 }
+        date: { type: string, minLength: 1 }
+        destination:
+          type: object
+          required: [lat, lng]
+          properties:
+            lat: { type: number, minimum: -90, maximum: 90 }
+            lng: { type: number, minimum: -180, maximum: 180 }
+            address: { type: string, minLength: 1 }
+            name: { type: string, minLength: 1 }
+            station: { type: string, minLength: 1 }
+    RouteResponse:
+      type: object
+      required: [route, resolvedPoints]
+      properties:
+        route:
+          type: object
+          required: [geometry, distanceMeters, durationSeconds]
+          properties:
+            geometry:
+              type: object
+              required: [type, coordinates]
+              properties:
+                type: { type: string }
+                coordinates:
+                  type: array
+                  items:
+                    type: array
+                    prefixItems: [{ type: number }, { type: number }]
+                    minItems: 2
+                    maxItems: 2
+            distanceMeters: { type: number }
+            durationSeconds: { type: number }
+        resolvedPoints:
+          type: object
+          required: [origin, destination]
+          properties:
+            origin: { $ref: '#/components/schemas/ResolvedPoint' }
+            destination: { $ref: '#/components/schemas/ResolvedPoint' }
+        train:
+          type: object
+          required: [url]
+          properties:
+            url: { type: string, format: uri }
+    ResolvedPoint:
+      type: object
+      required: [text, lat, lng]
+      properties:
+        text: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+    RouteError:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [INVALID_REQUEST, INVALID_ADDRESS, NO_ROUTE_FOUND, UPSTREAM_ERROR, UPSTREAM_QUOTA_EXCEEDED] }
+        message: { type: string }
+    Product:
+      type: object
+      required: [title, price, store, url, stockStatus, crawledAt]
+      properties:
+        title: { type: string }
+        price: { type: [number, 'null'] }
+        image: { type: [string, 'null'] }
+        store: { type: string }
+        vendor: { type: string }
+        url: { type: [string, 'null'] }
+        flightNumbers:
+          type: object
+          properties:
+            speed: { type: [string, 'null'] }
+            glide: { type: [string, 'null'] }
+            turn: { type: [string, 'null'] }
+            fade: { type: [string, 'null'] }
+        stockStatus: { type: string, enum: [available, unavailable, unknown] }
+        crawledAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    ProductSearchStart:
+      type: object
+      required: [query, stores]
+      properties:
+        query: { type: string }
+        stores: { type: array, items: { type: string } }
+    ProductSearchStore:
+      type: object
+      required: [store, products, count]
+      properties:
+        store: { type: string }
+        products: { type: array, items: { $ref: '#/components/schemas/Product' } }
+        count: { type: integer, minimum: 0 }
+    ProductSearchStoreError:
+      type: object
+      required: [store, message]
+      properties:
+        store: { type: string }
+        message: { type: string }
+    ProductSearchEnd:
+      type: object
+      required: [query, storesCompleted, totalProducts, failedStores]
+      properties:
+        query: { type: string }
+        storesCompleted: { type: integer, minimum: 0 }
+        totalProducts: { type: integer, minimum: 0 }
+        failedStores: { type: array, items: { type: string } }
+    TrainingStatus:
+      type: object
+      required: [date, signupOpen]
+      properties:
+        date: { type: string, format: date }
+        signupOpen: { type: boolean }
+    TrainingParticipant:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+    CreatedTrainingParticipant:
+      allOf:
+        - $ref: '#/components/schemas/TrainingParticipant'
+        - type: object
+          required: [date]
+          properties:
+            date: { type: string, format: date }

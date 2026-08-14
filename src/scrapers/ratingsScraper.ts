@@ -7,6 +7,10 @@ import { getCell } from '../utils';
 
 const endpoint = env.RATING_URL ? new URL(env.RATING_URL) : null;
 
+/**
+ * The rating source has no stable API. Keep this parser aligned with its table
+ * columns and treat a changed page as an upstream failure rather than guessing.
+ */
 async function scrapeRatings() {
   if (!endpoint) {
     console.error('RATING_URL not configured');

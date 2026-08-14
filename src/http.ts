@@ -12,7 +12,7 @@ const DEFAULT_RETRY_DELAY_MS = 300;
 const http = axios.create({
   timeout: DEFAULT_TIMEOUT_MS,
   headers: {
-    'User-Agent': 'discgolf-api/1.0',
+    'User-Agent': 'syndikat-api/1.0',
   },
 });
 
