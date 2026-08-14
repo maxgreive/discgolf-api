@@ -43,6 +43,7 @@ export default [
   },
   {
     url: 'https://www.birdie-shop.com/search?q={{query}}',
+    disabled: true,
     feed: null,
     shopSystem: 'squarespace',
     title: 'birdieshop',
@@ -55,6 +56,7 @@ export default [
   },
   {
     url: 'https://www.hyzer-store.de/page/{{page}}/?s={{query}}&post_type=product',
+    disabled: true,
     feed: null,
     shopSystem: 'woocommerce',
     title: 'hyzerstore',

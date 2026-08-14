@@ -4,6 +4,7 @@ import { handleCache } from '../scrapers/storesScraper';
 import shops from '../shopList';
 
 const router = Router();
+const enabledShops = shops.filter((shop) => !shop.disabled);
 
 function writeSseEvent(res: Response, event: string, data: unknown) {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -45,10 +46,10 @@ router.get('/search-stream/:query', async (req, res) => {
   try {
     writeSseEvent(res, 'start', {
       query,
-      stores: shops.map((shop) => shop.title),
+      stores: enabledShops.map((shop) => shop.title),
     });
 
-    const storePromises = shops.map(async (shop) => {
+    const storePromises = enabledShops.map(async (shop) => {
       try {
         const products = await handleCache(shop.title, query, { signal: controller.signal });
         const safeProducts = Array.isArray(products) ? products : [];
