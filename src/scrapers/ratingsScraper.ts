@@ -11,10 +11,9 @@ const endpoint = env.RATING_URL ? new URL(env.RATING_URL) : null;
  * The rating source has no stable API. Keep this parser aligned with its table
  * columns and treat a changed page as an upstream failure rather than guessing.
  */
-async function scrapeRatings() {
+async function scrapeRatings(): Promise<Rating[]> {
   if (!endpoint) {
-    console.error('RATING_URL not configured');
-    return { message: 'RATING_URL not configured' };
+    throw new Error('RATING_URL not configured');
   }
   try {
     const html = await getText(endpoint.toString());
@@ -59,19 +58,19 @@ async function scrapeRatings() {
     return ratings.filter(Boolean);
   } catch (error) {
     console.error(error);
-    return { message: 'An error occured' };
+    throw new Error('Unable to retrieve ratings');
   }
 }
 
-export async function getRatings(): Promise<Rating[] | { message: string }> {
+export async function getRatings(): Promise<Rating[]> {
   // Production: try cache first
   if (env.NODE_ENV === 'production') {
     const cache = await getCache<Rating[]>('ratings');
-    if (cache) return cache;
+    if (Array.isArray(cache)) return cache;
 
     const ratings = await scrapeRatings();
 
-    // Await to ensure it's stored (optional: could be fire-and-forget)
+    // Only successful rating arrays reach this point, so failures are never cached.
     await setCache('ratings', ratings, 30 * 60); // 30 minutes
     return ratings;
   }

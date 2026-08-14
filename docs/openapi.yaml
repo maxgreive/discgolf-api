@@ -51,7 +51,9 @@ paths:
           content:
             application/json:
               schema:
-                description: The upstream bag-tag service owns this payload shape.
+                type: array
+                items:
+                  $ref: '#/components/schemas/BagTag'
         '500':
           $ref: '#/components/responses/ServerError'
   /ratings:
@@ -60,15 +62,13 @@ paths:
       summary: Return scraped player ratings
       responses:
         '200':
-          description: Ratings, or an upstream configuration/error message
+          description: Ratings
           content:
             application/json:
               schema:
-                oneOf:
-                  - type: array
-                    items:
-                      $ref: '#/components/schemas/Rating'
-                  - $ref: '#/components/schemas/Message'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Rating'
         '500':
           $ref: '#/components/responses/ServerError'
   /tournaments:
@@ -120,7 +120,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/RouteResponse'
         '400':
-          description: Invalid request or unresolvable origin
+          description: Invalid request, including malformed JSON, or an unresolvable origin
           content:
             application/json:
               schema:
@@ -255,6 +255,8 @@ paths:
                       $ref: '#/components/schemas/TrainingParticipant'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
         '503':
           $ref: '#/components/responses/TrainingUnavailable'
     post:
@@ -310,6 +312,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
+        '500':
+          $ref: '#/components/responses/ServerError'
         '503':
           $ref: '#/components/responses/TrainingUnavailable'
   /training/participants/{id}:
@@ -333,6 +337,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
+        '500':
+          $ref: '#/components/responses/ServerError'
         '503':
           $ref: '#/components/responses/TrainingUnavailable'
 components:
@@ -388,6 +394,13 @@ components:
       required: [message]
       properties:
         message: { type: string }
+    BagTag:
+      type: object
+      required: [Rank, Name, Motiv]
+      properties:
+        Rank: { type: string, description: Display rank, including medal emoji for the top three places. }
+        Name: { type: string, description: Player name; may be empty for an unassigned tag. }
+        Motiv: { type: string, description: Nickname or tag motif; may be empty. }
     Rating:
       type: object
       required: [firstName, lastName, rating, ratingChange, divisionCount, gtNumber, division, lastRound, roundCount, dmRounds, rank, divisionRank, link, club]
@@ -514,7 +527,7 @@ components:
         image: { type: [string, 'null'] }
         store: { type: string }
         vendor: { type: string }
-        url: { type: [string, 'null'] }
+        url: { type: [string, 'null'], format: uri }
         flightNumbers:
           type: object
           properties:

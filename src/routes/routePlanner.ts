@@ -1,4 +1,4 @@
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
 import { z } from 'zod';
 import {
@@ -45,3 +45,19 @@ export async function handleTournamentRoute(req: Request, res: Response) {
 }
 
 export const tournamentRouteJsonMiddleware = express.json();
+
+export function handleTournamentRouteJsonError(
+  error: Error & { status?: number; type?: string },
+  _: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  if (error.type === 'entity.parse.failed') {
+    return res.status(400).json({
+      code: 'INVALID_REQUEST',
+      message: 'Request body must be valid JSON',
+    });
+  }
+
+  return next(error);
+}

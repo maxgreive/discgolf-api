@@ -39,9 +39,9 @@ export interface TournamentOutput {
   };
   badge?: string;
   dates: {
-    startTournament: string | Date;
-    endTournament?: string | Date;
-    startRegistration?: string | Date;
+    startTournament: string | Date | null;
+    endTournament?: string | Date | null;
+    startRegistration?: string | Date | null;
   };
   spots?: {
     overall: number;

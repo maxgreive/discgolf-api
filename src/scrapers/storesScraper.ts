@@ -780,6 +780,6 @@ function cleanURL(string: string | null | undefined): string | null {
     parsedURL.hash = '';
     return parsedURL.toString();
   } catch {
-    return trimmed;
+    return null;
   }
 }

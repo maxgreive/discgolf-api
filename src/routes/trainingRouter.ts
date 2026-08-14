@@ -10,7 +10,7 @@ function unavailable(response: Response) {
 }
 
 function participantName(value: unknown) {
-  return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ').slice(0, 40) : '';
+  return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
 }
 
 function trainingDate(value: unknown) {
@@ -102,8 +102,12 @@ router.post('/participants', async (request, response, next) => {
   const status = trainingStatus();
   if (!status.signupOpen)
     return response.status(403).json({ message: 'Signup for the next training opens on Saturday' });
+  if (typeof request.body?.name === 'string' && request.body.name.length > 40)
+    return response.status(400).json({ message: 'A name must be 40 characters or fewer' });
   const name = participantName(request.body?.name);
   if (!name) return response.status(400).json({ message: 'A name is required' });
+  if (typeof request.body?.password !== 'string')
+    return response.status(400).json({ message: 'A password is required' });
   if (!passwordMatches(request.body?.password))
     return response.status(401).json({ message: 'Incorrect password' });
   const removalToken = randomBytes(32).toString('base64url');
